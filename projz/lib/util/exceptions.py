@@ -25,7 +25,7 @@ class InvalidSession(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
-class InvalidPassword(Exception):
+class PasswordTooShort(Exception):
     """
     - **API Code** : 2006
     - **API Message** : Password must contain 6 characters or more with no spaces.
@@ -43,11 +43,29 @@ class EmailNotRegistered(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class InvalidPassword(Exception):
+    """
+    - **API Code** : 2010
+    - **API Message** : Password is incorrect. Forgot your password? Trying resetting it.
+    - **Debug Message** : Email or password is not right
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class InvalidEmail(Exception):
     """
     - **API Code** : 2022
     - **API Message** : The email format is invalid.
     - **Debug Message** : Email Format Error!
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class ZIDAlreadyChanged(Exception):
+    """
+    - **API Code** : 2028
+    - **API Message** : Z-ID cannot be modified.
+    - **Debug Message** : Social id cannot be modified again
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -118,6 +136,13 @@ class NotLoggedIn(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class InvalidFileExtension(Exception):
+    """
+    Raised when you try to upload a picture but the file type is unknown.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class LibraryUpdateAvailable(Exception):
     """
     Raised when a new library update is available.
@@ -132,9 +157,11 @@ def CheckException(data):
     if api_code == 1000: raise InvalidHeader(data)
     elif api_code == 1001: raise InvalidRequest(data)
     elif api_code == 2004: raise InvalidSession(data)
-    elif api_code == 2006: raise InvalidPassword(data)
+    elif api_code == 2006: raise PasswordTooShort(data)
     elif api_code == 2009: raise EmailNotRegistered(data)
+    elif api_code == 2010: raise InvalidPassword(data)
     elif api_code == 2022: raise InvalidEmail(data)
+    elif api_code == 2028: raise ZIDAlreadyChanged(data)
     elif api_code == 3005: raise InvalidNickname(data)
     elif api_code == 3301: raise InvalidInvitationCode(data)
     elif api_code == 5001: raise InvalidTag(data)

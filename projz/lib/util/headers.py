@@ -25,5 +25,3 @@ class Headers:
         if sid: headers["sId"] = sid
         if type: headers["Content-Type"] = type
         self.headers = headers
-
-
