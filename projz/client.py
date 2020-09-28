@@ -4,6 +4,7 @@ import requests
 from .socket import SocketHandler
 from .lib.util import exceptions, headers, device, objects
 from typing import BinaryIO
+from time import time as timestamp
 
 device = device.DeviceGenerator()
 
@@ -154,6 +155,16 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfile(json.loads(response.text)).UserProfile
 
+    def get_user_following(self, userId: str, size: int = 25):
+        response = requests.get(f"{self.api}/users/membership/{userId}?type=following&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
+
+    def get_user_followers(self, userId: str, size: int = 25):
+        response = requests.get(f"{self.api}/users/membership/{userId}?type=follower&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
+
     def get_all_users(self, size: int = 25):
         response = requests.get(f"{self.api}/search/users?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
@@ -163,6 +174,7 @@ class Client:
         if gender.lower() == "all": response = requests.get(f"{self.api}/users/namecards?gender=0&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         elif gender.lower() == "male": response = requests.get(f"{self.api}/users/namecards?gender=1&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         elif gender.lower() == "female": response = requests.get(f"{self.api}/users/namecards?gender=2&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        elif gender.lower() == "other": response = requests.get(f"{self.api}/users/namecards?gender=100&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         else: raise exceptions.WrongType
 
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
@@ -186,19 +198,25 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.CommentList(json.loads(response.text)["list"]).CommentList
 
+    def get_blog_likes(self, blogId: str, size: int = 25):
+        response = requests.get(f"{self.api}/votes?objectId={blogId}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.CommentList(json.loads(response.text)["list"]).CommentList
+
     def like_blog(self, circleId: str = "0", blogId: str = None, commentId: str = None):
         if blogId is not None: objId, objType = blogId, 2
         elif commentId is not None: objId, objType = commentId, 3
         else: raise exceptions.SpecifyType
 
         data = json.dumps({
-            "circleId": circleId,
-            "objectId": objId,
+            "circleId": int(circleId),
+            "objectId": int(objId),
             "objectType": objType
         })
+
         response = requests.post(f"{self.api}/votes", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
-        else: return objects.GetBlogs(json.loads(response.text)).GetBlogs
+        else: return response.status_code
 
     def get_user_blogs(self, userId: str, size: int = 25):
         response = requests.get(f"{self.api}/blogs?type=user&targetUid={userId}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
@@ -271,7 +289,45 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def get_chat_threads(self, type: str, size: int = 25):
+    def edit_chat(self, chatId: str, title: str = None, content: str = None, pinChat: bool = None, doNotDisturb: bool = None, allowMembersInvite: bool = None):
+        data, responses = {}, []
+
+        if title is not None: data["title"] = title
+        if content is not None: data["content"] = content
+
+        data = json.dumps(data)
+
+        if pinChat is not None:
+            if pinChat is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/pin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+            elif pinChat is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/unpin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+            else: raise exceptions.WrongType
+
+            if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
+            else: responses.append(response.status_code)
+
+        if doNotDisturb is not None:
+            if doNotDisturb is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/alert-option/2", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+            elif doNotDisturb is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/alert-option/1", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+            else: raise exceptions.WrongType
+
+            if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
+            else: responses.append(response.status_code)
+
+        if allowMembersInvite is not None:
+            if allowMembersInvite is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/members-invite/enable", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+            elif allowMembersInvite is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/members-invite/disable", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+            else: raise exceptions.WrongType
+
+            if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
+            else: responses.append(response.status_code)
+
+        response = requests.post(f"{self.api}/chat/threads/{chatId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
+        else: responses.append(response.status_code)
+
+        return responses
+
+    def get_chat_threads(self, type: str = "joined", size: int = 25):
         if type.lower() == "joined": response = requests.get(f"{self.api}/chat/joined-threads?start=0&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         elif type.lower() == "recommend": response = requests.get(f"{self.api}/chat/threads?type=recommend&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         else: raise exceptions.WrongType
@@ -286,6 +342,11 @@ class Client:
 
     def get_chat_online_users(self, chatId: str, size: int = 25):
         response = requests.get(f"{self.api}/chat/threads/{chatId}/online-members?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
+
+    def get_chat_users(self, chatId: str, size: int = 25):
+        response = requests.get(f"{self.api}/chat/threads/{chatId}/members?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
@@ -335,6 +396,36 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Tag(json.loads(response.text)).Tag
 
+    def comment(self, message: str, blogId: str = None, replyTo: str = None):
+        if blogId is not None: targetId = blogId
+        else: raise exceptions.SpecifyType
+
+        if replyTo is not None: replyTo = replyTo
+        else: replyTo = 0
+
+        data = json.dumps({
+            "circleId": 0,
+            "commentId": 0,
+            "commentType": 1,
+            "content": message,
+            "mediaList": [],
+            "parentId": targetId,
+            "parentType": 2,
+            "replyId": replyTo,
+            "status": 1,
+            "subComments": [],
+            "subCommentsCount": 0,
+            "uid": 0
+        })
+        response = requests.post(f"{self.api}/comments", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def delete_comment(self, commentId: str):
+        response = requests.delete(f"{self.api}/comments/{commentId}", headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
     def share(self, userId: str = None, chatId: str = None, circleId: str = None):
         if userId is not None: objId, objType, objPath = 0, 0, f"user/{userId}"
         elif chatId is not None: objId, objType, objPath = 0, 0, f"chat/{chatId}"
@@ -365,3 +456,20 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)
 
+    def send_message(self, message: str, chatId: str):
+        if self.authenticated is False: raise exceptions.NotLoggedIn
+
+        request = self.socket.send(json.dumps({
+                "t": 1,
+                "threadId": int(chatId),
+                "msg": {
+                    "type": 1,
+                    "status": 1,
+                    "threadId": int(chatId),
+                    "uid": self.userId,
+                    "refId": int(timestamp() * 1000),
+                    "content": message,
+                    "messageId": 0
+                }}))
+
+        return request

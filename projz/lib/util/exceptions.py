@@ -52,6 +52,24 @@ class InvalidPassword(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class PHONE_NUMBER_ALREADY_REGISTERED(Exception):
+    """
+    - **API Code** : 2014
+    - **API Message** : ``Unknown``
+    - **Debug Message** : ``Unknown``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class PHONE_NUMBER_NOT_EXIST(Exception):
+    """
+    - **API Code** : 2016
+    - **API Message** : ``Unknown``
+    - **Debug Message** : ``Unknown``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class InvalidEmail(Exception):
     """
     - **API Code** : 2022
@@ -66,6 +84,15 @@ class ZIDAlreadyChanged(Exception):
     - **API Code** : 2028
     - **API Message** : Z-ID cannot be modified.
     - **Debug Message** : Social id cannot be modified again
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class EMAIL_ALREADY_REGISTERED(Exception):
+    """
+    - **API Code** : 2038
+    - **API Message** : ``Unknown``
+    - **Debug Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -160,8 +187,11 @@ def CheckException(data):
     elif api_code == 2006: raise PasswordTooShort(data)
     elif api_code == 2009: raise EmailNotRegistered(data)
     elif api_code == 2010: raise InvalidPassword(data)
+    elif api_code == 2014: raise PHONE_NUMBER_ALREADY_REGISTERED(data)
+    elif api_code == 2016: raise PHONE_NUMBER_NOT_EXIST(data)
     elif api_code == 2022: raise InvalidEmail(data)
     elif api_code == 2028: raise ZIDAlreadyChanged(data)
+    elif api_code == 2038: raise EMAIL_ALREADY_REGISTERED(data)
     elif api_code == 3005: raise InvalidNickname(data)
     elif api_code == 3301: raise InvalidInvitationCode(data)
     elif api_code == 5001: raise InvalidTag(data)

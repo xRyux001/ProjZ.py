@@ -33,6 +33,7 @@ class UserProfile:
         self.chatMemberStatus = None
         self.location = None
         self.nameCardBackground = None
+        self.nameCardBackgroundUrl = None
         self.fansCount = None
         self.followingCount = None
         self.friendsCount = None
@@ -101,6 +102,8 @@ class UserProfile:
         except (KeyError, TypeError): pass
         try: self.nameCardBackground = self.json["nameCardBackground"]
         except (KeyError, TypeError): pass
+        try: self.nameCardBackgroundUrl = self.json["nameCardBackground"]["baseUrl"]
+        except (KeyError, TypeError): pass
         try: self.fansCount = self.json["fansCount"]
         except (KeyError, TypeError): pass
         try: self.friendsCount = self.json["friendsCount"]
@@ -160,6 +163,7 @@ class UserProfileList:
         self.chatMemberStatus = []
         self.location = []
         self.nameCardBackground = []
+        self.nameCardBackgroundUrl = []
         self.fansCount = []
         self.followingCount = []
         self.friendsCount = []
@@ -229,6 +233,8 @@ class UserProfileList:
             except (KeyError, TypeError): self.location.append(None)
             try: self.nameCardBackground.append(obj["nameCardBackground"])
             except (KeyError, TypeError): self.nameCardBackground.append(None)
+            try: self.nameCardBackgroundUrl.append(obj["nameCardBackground"]["baseUrl"])
+            except (KeyError, TypeError): self.nameCardBackgroundUrl.append(None)
             try: self.fansCount.append(obj["fansCount"])
             except (KeyError, TypeError): self.fansCount.append(None)
             try: self.followingCount.append(obj["followingCount"])
@@ -853,6 +859,8 @@ class CommentList:
         self.extensions = []
         self.contentStatus = []
         self.replyToUser = []
+        self.objectId = []
+        self.objectType = []
 
     @property
     def CommentList(self):
@@ -869,6 +877,10 @@ class CommentList:
             except (KeyError, TypeError): self.uid.append(None)
             try: self.circleId.append(obj["circleId"])
             except (KeyError, TypeError): self.circleId.append(None)
+            try: self.objectId.append(obj["objectId"])
+            except (KeyError, TypeError): self.objectId.append(None)
+            try: self.objectType.append(obj["objectType"])
+            except (KeyError, TypeError): self.objectType.append(None)
             try: self.replyId.append(obj["replyId"])
             except (KeyError, TypeError): self.replyId.append(None)
             try: self.status.append(obj["status"])
