@@ -296,6 +296,44 @@ class GetChats:
 
         return self
 
+class GetChatMessages:
+    def __init__(self, data):
+        self.json = data
+
+        try: self.message = MessageList(data["list"]).MessageList
+        except (KeyError, TypeError): self.message = None
+
+        self.nextPageToken = None
+        self.isEnd = None
+
+    @property
+    def GetChatMessages(self):
+        try: self.nextPageToken = self.json["pagination"]["nextPageToken"]
+        except (KeyError, TypeError): pass
+        try: self.isEnd = self.json["isEnd"]
+        except (KeyError, TypeError): pass
+
+        return self
+
+class GetAllUsers:
+    def __init__(self, data):
+        self.json = data
+
+        try: self.profile = UserProfileList(data["list"]).UserProfileList
+        except (KeyError, TypeError): self.profile = None
+
+        self.nextPageToken = None
+        self.isEnd = None
+
+    @property
+    def GetAllUsers(self):
+        try: self.nextPageToken = self.json["pagination"]["nextPageToken"]
+        except (KeyError, TypeError): pass
+        try: self.isEnd = self.json["isEnd"]
+        except (KeyError, TypeError): pass
+
+        return self
+
 class Blog:
     def __init__(self, data):
         self.json = data
@@ -446,6 +484,7 @@ class Chat:
         self.rolePlayMode = None
         self.alertOption = None
         self.currentMemberInfo = None
+        self.blacklist = None
 
     @property
     def Chat(self):
@@ -486,6 +525,8 @@ class Chat:
         try: self.activityType = self.json["extensions"]["activityType"]
         except (KeyError, TypeError): pass
         try: self.rolePlayMode = self.json["extensions"]["rolePlayMode"]
+        except (KeyError, TypeError): pass
+        try: self.blacklist = self.json["extensions"]["blacklist"]
         except (KeyError, TypeError): pass
         try: self.alertOption = self.json["currentMemberInfo"]["alertOption"]
         except (KeyError, TypeError): pass
@@ -531,6 +572,7 @@ class ChatList:
         self.rolePlayMode = []
         self.alertOption = []
         self.currentMemberInfo = []
+        self.blacklist = []
 
     @property
     def ChatList(self):
@@ -573,6 +615,8 @@ class ChatList:
             except (KeyError, TypeError): self.activityType.append(None)
             try: self.rolePlayMode.append(obj["extensions"]["rolePlayMode"])
             except (KeyError, TypeError): self.rolePlayMode.append(None)
+            try: self.blacklist.append(obj["extensions"]["blacklist"])
+            except (KeyError, TypeError): self.blacklist.append(None)
             try: self.alertOption.append(obj["currentMemberInfo"]["alertOption"])
             except (KeyError, TypeError): self.alertOption.append(None)
             try: self.currentMemberInfo.append(obj["currentMemberInfo"])
@@ -590,6 +634,8 @@ class Message:
         except (KeyError, TypeError): self.role = None
         try: self.userList = UserProfileList(data["userList"]).UserProfileList
         except (KeyError, TypeError): self.userList = None
+        try: self.roleList = RoleList(data["roleList"]).RoleList
+        except (KeyError, TypeError): self.roleList = None
 
         self.content = None
         self.messageId = None
@@ -602,6 +648,13 @@ class Message:
         self.friendshipLevel = None
         self.roleId = None
         self.invitedIds = None
+        self.media = None
+        self.mediaUrl = None
+        self.memberList = None
+        self.threadActivityType = None
+        self.rolePlayMode = None
+        self.cover = None
+        self.coverUrl = None
 
     @property
     def Message(self):
@@ -627,12 +680,26 @@ class Message:
         except (KeyError, TypeError): pass
         try: self.invitedIds = self.json["extensions"]["invitedUids"]
         except (KeyError, TypeError): pass
+        try: self.media = self.json["media"]
+        except (KeyError, TypeError): pass
+        try: self.mediaUrl = self.json["media"]["baseUrl"]
+        except (KeyError, TypeError): pass
+        try: self.cover = self.json["media"]["cover"]
+        except (KeyError, TypeError): pass
+        try: self.coverUrl = self.json["media"]["cover"]["baseUrl"]
+        except (KeyError, TypeError): pass
+        try: self.memberList = self.json["memberList"]
+        except (KeyError, TypeError): pass
+        try: self.threadActivityType = self.json["threadActivityType"]
+        except (KeyError, TypeError): pass
+        try: self.rolePlayMode = self.json["rolePlayMode"]
+        except (KeyError, TypeError): pass
 
         return self
 
 class MessageList:
     def __init__(self, data):
-        _author, _role, _userList = [], [], []
+        _author, _role, _userList, _roleList = [], [], [], []
         self.json = data
 
         for obj_ in data:
@@ -642,10 +709,13 @@ class MessageList:
             except (KeyError, TypeError): _role.append(None)
             try: _userList.append(UserProfileList(obj_["userList"]).UserProfileList)
             except (KeyError, TypeError): _userList.append(None)
+            try: _roleList.append(RoleList(obj_["roleList"]).RoleList)
+            except (KeyError, TypeError): _roleList.append(None)
 
         self.author = UserProfileList(_author).UserProfileList
         self.userList = _userList
         self.role = RoleList(_role).RoleList
+        self.roleList = _roleList
         self.content = []
         self.messageId = []
         self.chatId = []
@@ -657,6 +727,13 @@ class MessageList:
         self.friendshipLevel = []
         self.roleId = []
         self.invitedIds = []
+        self.media = []
+        self.mediaUrl = []
+        self.memberList = []
+        self.threadActivityType = []
+        self.rolePlayMode = []
+        self.cover = []
+        self.coverUrl = []
 
     @property
     def MessageList(self):
@@ -683,6 +760,20 @@ class MessageList:
             except (KeyError, TypeError): self.roleId.append(None)
             try: self.invitedIds.append(obj["extensions"]["invitedUids"])
             except (KeyError, TypeError): self.invitedIds.append(None)
+            try: self.media.append(obj["media"])
+            except (KeyError, TypeError): self.media.append(None)
+            try: self.mediaUrl.append(obj["media"]["baseUrl"])
+            except (KeyError, TypeError): self.mediaUrl.append(None)
+            try: self.cover.append(obj["media"]["cover"])
+            except (KeyError, TypeError): self.cover.append(None)
+            try: self.coverUrl.append(obj["media"]["cover"]["baseUrl"])
+            except (KeyError, TypeError): self.coverUrl.append(None)
+            try: self.memberList.append(obj["memberList"])
+            except (KeyError, TypeError): self.memberList.append(None)
+            try: self.threadActivityType.append(obj["threadActivityType"])
+            except (KeyError, TypeError): self.threadActivityType.append(None)
+            try: self.rolePlayMode.append(obj["rolePlayMode"])
+            except (KeyError, TypeError): self.rolePlayMode.append(None)
 
         return self
 

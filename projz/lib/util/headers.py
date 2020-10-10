@@ -8,7 +8,7 @@ class Headers:
         headers = {
             "rawDeviceId": device.device_id,
             "appType": "en-US",
-            "appVersion": "1.0.3",
+            "appVersion": "1.0.4",
             "osType": "2",
             "deviceType": "1",
             "countryCode": "PT",

@@ -2,7 +2,6 @@ class InvalidHeader(Exception):
     """
     - **API Code** : 1000
     - **API Message** : Invalid header
-    - **Debug Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -11,7 +10,14 @@ class InvalidRequest(Exception):
     """
     - **API Code** : 1001
     - **API Message** : Bad request. Error code-1001
-    - **Debug Message** : invalid check request body invalid character '}' looking for beginning of object key string
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class BLOG_NOT_FOUND(Exception):
+    """
+    - **API Code** : 1202
+    - **API Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -20,7 +26,6 @@ class InvalidSession(Exception):
     """
     - **API Code** : 2004
     - **API Message** : Bad request. Error code-2004
-    - **Debug Message** : Invalid session
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -29,7 +34,6 @@ class PasswordTooShort(Exception):
     """
     - **API Code** : 2006
     - **API Message** : Password must contain 6 characters or more with no spaces.
-    - **Debug Message** : Password must be more than 5 characters and cannot contain space
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -38,7 +42,6 @@ class EmailNotRegistered(Exception):
     """
     - **API Code** : 2009
     - **API Message** : The email has not been registered
-    - **Debug Message** : Email not existed: example@example.ex
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -47,7 +50,6 @@ class InvalidPassword(Exception):
     """
     - **API Code** : 2010
     - **API Message** : Password is incorrect. Forgot your password? Trying resetting it.
-    - **Debug Message** : Email or password is not right
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -56,7 +58,6 @@ class PHONE_NUMBER_ALREADY_REGISTERED(Exception):
     """
     - **API Code** : 2014
     - **API Message** : ``Unknown``
-    - **Debug Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -65,7 +66,6 @@ class PHONE_NUMBER_NOT_EXIST(Exception):
     """
     - **API Code** : 2016
     - **API Message** : ``Unknown``
-    - **Debug Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -74,7 +74,6 @@ class InvalidEmail(Exception):
     """
     - **API Code** : 2022
     - **API Message** : The email format is invalid.
-    - **Debug Message** : Email Format Error!
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -83,7 +82,14 @@ class ZIDAlreadyChanged(Exception):
     """
     - **API Code** : 2028
     - **API Message** : Z-ID cannot be modified.
-    - **Debug Message** : Social id cannot be modified again
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class USER_NOT_FOUND(Exception):
+    """
+    - **API Code** : 2034
+    - **API Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -92,7 +98,6 @@ class EMAIL_ALREADY_REGISTERED(Exception):
     """
     - **API Code** : 2038
     - **API Message** : ``Unknown``
-    - **Debug Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -101,7 +106,6 @@ class InvalidInvitationCode(Exception):
     """
     - **API Code** : 3301
     - **API Message** : The invitation code does not exist.
-    - **Debug Message** : Invitation code not existed
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -110,7 +114,14 @@ class InvalidNickname(Exception):
     """
     - **API Code** : 3005
     - **API Message** : This nickname is invalid, please try another one.
-    - **Debug Message** : Nickyname length is not legal
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class CIRCLE_NOT_FOUND(Exception):
+    """
+    - **API Code** : 4008
+    - **API Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -119,7 +130,6 @@ class InvalidTag(Exception):
     """
     - **API Code** : 5001
     - **API Message** : The tag is invalid, please try another one.
-    - **Debug Message** : Tag length exceed the max limitation
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -128,16 +138,30 @@ class TagLimitReached(Exception):
     """
     - **API Code** : 5002
     - **API Message** : The tag count is exceed the max limitation.
-    - **Debug Message** : User tag count exceed max limitation
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
-class ChatDoesntExist(Exception):
+class ChatDoesntExistOrNotFound(Exception):
     """
     - **API Code** : 6001
     - **API Message** : The chat does not exist.
-    - **Debug Message** : thread not found
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class ROLE_NOT_FOUND(Exception):
+    """
+    - **API Code** : 6003
+    - **API Message** : ``Unknown``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class BadRequest(Exception):
+    """
+    - **API Code** : 9001
+    - **API Message** : Bad request. Error code-9001
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -183,6 +207,7 @@ def CheckException(data):
 
     if api_code == 1000: raise InvalidHeader(data)
     elif api_code == 1001: raise InvalidRequest(data)
+    elif api_code == 1202: raise BLOG_NOT_FOUND(data)
     elif api_code == 2004: raise InvalidSession(data)
     elif api_code == 2006: raise PasswordTooShort(data)
     elif api_code == 2009: raise EmailNotRegistered(data)
@@ -191,10 +216,14 @@ def CheckException(data):
     elif api_code == 2016: raise PHONE_NUMBER_NOT_EXIST(data)
     elif api_code == 2022: raise InvalidEmail(data)
     elif api_code == 2028: raise ZIDAlreadyChanged(data)
+    elif api_code == 2034: raise USER_NOT_FOUND(data)
     elif api_code == 2038: raise EMAIL_ALREADY_REGISTERED(data)
     elif api_code == 3005: raise InvalidNickname(data)
     elif api_code == 3301: raise InvalidInvitationCode(data)
+    elif api_code == 4008: raise CIRCLE_NOT_FOUND(data)
     elif api_code == 5001: raise InvalidTag(data)
     elif api_code == 5002: raise TagLimitReached(data)
-    elif api_code == 6001: raise ChatDoesntExist(data)
+    elif api_code == 6001: raise ChatDoesntExistOrNotFound(data)
+    elif api_code == 6003: raise ROLE_NOT_FOUND(data)
+    elif api_code == 9001: raise BadRequest(data)
     else: return data

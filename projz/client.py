@@ -1,7 +1,7 @@
 import json
 import requests
 
-from .socket import SocketHandler
+from .socket import SocketHandler, Callbacks
 from .lib.util import exceptions, headers, device, objects
 from typing import BinaryIO
 from time import time as timestamp
@@ -9,13 +9,14 @@ from time import time as timestamp
 device = device.DeviceGenerator()
 
 class Client:
-    def __init__(self, proxies = None, socket_trace = False):
+    def __init__(self, callback = Callbacks, proxies = None, socket_trace = False):
         self.api = "https://api.projz.com/v1"
         self.authenticated = False
         self.configured = False
         self.user_agent = device.user_agent
         self.device_id = device.device_id
         self.socket = SocketHandler(self, socket_trace=socket_trace)
+        self.callbacks = callback(self)
         self.proxies = proxies
 
         self.json = None
@@ -165,10 +166,11 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
-    def get_all_users(self, size: int = 25):
-        response = requests.get(f"{self.api}/search/users?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_all_users(self, size: int = 25, pageToken: str = None):
+        if pageToken is None: response = requests.get(f"{self.api}/search/users?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        else: response = requests.get(f"{self.api}/search/users?size={size}&pageToken={pageToken}", headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
-        else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
+        else: return objects.GetAllUsers(json.loads(response.text)).GetAllUsers
 
     def get_namecards(self, gender: str, size: int = 25):
         if gender.lower() == "all": response = requests.get(f"{self.api}/users/namecards?gender=0&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
@@ -247,7 +249,7 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def edit_profile(self, nickname: str = None, bio: str = None, background: BinaryIO = None, gender: str = None, school: str = None, showsSchool: bool = None, showsJoinedCircles: bool = None, showsLocation: bool = None, chatInvitationStatus: str = None):
+    def edit_profile(self, nickname: str = None, bio: str = None, background: BinaryIO = None, gender: str = None, school: str = None, address: str = None, isOnline: bool = None, showsSchool: bool = None, showsJoinedCircles: bool = None, showsLocation: bool = None, chatInvitationStatus: str = None, latitude: float = None, longitude: float = None):
         if gender.lower() is not None and "male": gender = 1
         elif gender.lower() is not None and "female": gender = 2
         elif gender.lower() is not None and "other": gender = 100
@@ -273,16 +275,28 @@ class Client:
         elif chatInvitationStatus.lower() is not None and "off" or "nobody": chatInvitationStatus = 4
         else: raise exceptions.WrongType
 
+        if isOnline is not None and True: status = 1
+        elif isOnline is not None and False: status = 0
+        else: raise exceptions.WrongType
+
         data = json.dumps({
             "nickname": nickname,
             "bio": bio,
             "background": background,
             "gender": gender,
             "school": school,
+            "location": {
+                "address": {
+                    "en": address
+                },
+                "latitude": latitude,
+                "longitude": longitude
+            },
             "showsSchool": showsSchool,
             "showsJoinedCircles": showsJoinedCircles,
             "showsLocation": showsLocation,
-            "chatInvitationStatus": chatInvitationStatus
+            "chatInvitationStatus": chatInvitationStatus,
+            "status": status
         })
 
         response = requests.post(f"{self.api}/users/profile/{self.userId}/update-profile", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
@@ -335,10 +349,11 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetChats(json.loads(response.text)).GetChats
 
-    def get_chat_messages(self, chatId: str, size: int = 25):
-        response = requests.get(f"{self.api}/chat/threads/{chatId}/messages?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_chat_messages(self, chatId: str, size: int = 25, pageToken: str = None):
+        if pageToken is None: response = requests.get(f"{self.api}/chat/threads/{chatId}/messages?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        else: response = requests.get(f"{self.api}/chat/threads/{chatId}/messages?size={size}&pageToken={pageToken}", headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
-        else: return objects.MessageList(json.loads(response.text)["list"]).MessageList
+        else: return objects.GetChatMessages(json.loads(response.text)).GetChatMessages
 
     def get_chat_online_users(self, chatId: str, size: int = 25):
         response = requests.get(f"{self.api}/chat/threads/{chatId}/online-members?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
@@ -456,14 +471,14 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)
 
-    def send_message(self, message: str, chatId: str):
+    def send_message(self, message: str, chatId: str, messageType: int = 1):
         if self.authenticated is False: raise exceptions.NotLoggedIn
 
         request = self.socket.send(json.dumps({
                 "t": 1,
                 "threadId": int(chatId),
                 "msg": {
-                    "type": 1,
+                    "type": messageType,
                     "status": 1,
                     "threadId": int(chatId),
                     "uid": self.userId,
@@ -473,3 +488,104 @@ class Client:
                 }}))
 
         return request
+
+    def send_chat_active(self, chatId: str):
+        if self.authenticated is False: raise exceptions.NotLoggedIn
+
+        request = self.socket.send(json.dumps({
+                "t": 6,
+                "threadId": int(chatId)
+                }))
+
+        return request
+
+    def send_control_message(self, message: str, chatId: str, messageType: int, messageId: str = None, userList: list = None):
+        if userList is None: userList = []
+
+        if messageId is None: messageId = 0
+        else: messageId = messageId
+
+        data = json.dumps({
+            "applyCount": 0,
+            "asSummary": False,
+            "createdTime": 0,
+            "memberList": [],
+            "messageId": messageId,
+            "refId": 0,
+            "roleList": [],
+            "rolePlayMode": 0,
+            "status": 1,
+            "threadActivityType": 0,
+            "threadId": 0,
+            "type": messageType,
+            "content": message,
+            "uid": 0,
+            "userList": userList
+        })
+
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/control-messages", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def delete_message(self, messageId: str, chatId: str):
+        response = requests.delete(f"{self.api}/chat/threads/{chatId}/messages/{messageId}", headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def search(self, content: str, type: str, size: int = 25):
+        if type == "chat":
+            response = requests.get(f"{self.api}/search/chat?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+            else: return objects.ChatList(json.loads(response.text)["list"]).ChatList
+
+        elif type == "blogs":
+            response = requests.get(f"{self.api}/search/blogs?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+            else: return objects.BlogList(json.loads(response.text)["list"]).BlogList
+
+        elif type == "circles":
+            response = requests.get(f"{self.api}/search/circles?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+            else: return objects.CircleList(json.loads(response.text)["list"]).CircleList
+
+        elif type == "users":
+            response = requests.get(f"{self.api}/search/users?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+            else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
+
+        else: raise exceptions.WrongType
+
+    def start_chat(self, message: str, userId: [str, list], type: str, title: str = None, tagStrList: list = None):
+        if type.lower() == "private": type = 2
+        elif type.lower() == "global": type = 0
+        else: raise exceptions.WrongType
+
+        if isinstance(userId, str): userId = [userId]
+        elif isinstance(userId, list): userId = userId
+        else: raise exceptions.WrongType
+
+        data = json.dumps({
+            "createdTime": 0,
+            "hostUid": 0,
+            "invitedUids": userId,
+            "latestMessageId": 0,
+            "tagStrList": tagStrList,
+            "initialMessageContent": message,
+            "status": 1,
+            "threadId": 0,
+            "type": type,
+            "title": title,
+            "uid": 0
+        })
+
+        response = requests.post(f"{self.api}/chat/threads", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def delete_chat(self, chatId: str):
+        response = requests.delete(f"{self.api}/chat/threads/{chatId}", headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def handle_socket_message(self, data):
+        return self.callbacks.resolve(data)
