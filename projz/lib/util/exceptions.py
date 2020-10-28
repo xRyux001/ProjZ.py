@@ -22,6 +22,14 @@ class BLOG_NOT_FOUND(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class SessionTimeout(Exception):
+    """
+    - **API Code** : 2002
+    - **API Message** : Session timeout
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class InvalidSession(Exception):
     """
     - **API Code** : 2004
@@ -34,6 +42,14 @@ class PasswordTooShort(Exception):
     """
     - **API Code** : 2006
     - **API Message** : Password must contain 6 characters or more with no spaces.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class InvalidDeviceId(Exception):
+    """
+    - **API Code** : 2007
+    - **API Message** : The deviceId is not correct
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -74,6 +90,14 @@ class InvalidEmail(Exception):
     """
     - **API Code** : 2022
     - **API Message** : The email format is invalid.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class INVALID_PTOKEN(Exception):
+    """
+    - **API Code** : 2023
+    - **API Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -194,6 +218,20 @@ class InvalidFileExtension(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class InvalidUrl(Exception):
+    """
+    Raised when you don't put a valid Project Z Url.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class InvalidRegion(Exception):
+    """
+    Raised when you choose a region that doesn't exist. Use ``client.get_content_regions()`` to get the list of them.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class LibraryUpdateAvailable(Exception):
     """
     Raised when a new library update is available.
@@ -208,13 +246,16 @@ def CheckException(data):
     if api_code == 1000: raise InvalidHeader(data)
     elif api_code == 1001: raise InvalidRequest(data)
     elif api_code == 1202: raise BLOG_NOT_FOUND(data)
+    elif api_code == 2002: raise SessionTimeout(data)
     elif api_code == 2004: raise InvalidSession(data)
     elif api_code == 2006: raise PasswordTooShort(data)
+    elif api_code == 2007: raise InvalidDeviceId(data)
     elif api_code == 2009: raise EmailNotRegistered(data)
     elif api_code == 2010: raise InvalidPassword(data)
     elif api_code == 2014: raise PHONE_NUMBER_ALREADY_REGISTERED(data)
     elif api_code == 2016: raise PHONE_NUMBER_NOT_EXIST(data)
     elif api_code == 2022: raise InvalidEmail(data)
+    elif api_code == 2023: raise INVALID_PTOKEN(data)
     elif api_code == 2028: raise ZIDAlreadyChanged(data)
     elif api_code == 2034: raise USER_NOT_FOUND(data)
     elif api_code == 2038: raise EMAIL_ALREADY_REGISTERED(data)
@@ -226,4 +267,4 @@ def CheckException(data):
     elif api_code == 6001: raise ChatDoesntExistOrNotFound(data)
     elif api_code == 6003: raise ROLE_NOT_FOUND(data)
     elif api_code == 9001: raise BadRequest(data)
-    else: return data
+    else: raise Exception(data)

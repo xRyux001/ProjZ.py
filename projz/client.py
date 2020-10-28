@@ -90,6 +90,41 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
+    def change_password(self, oldPassword: str, newPassword: str):
+        data = json.dumps({
+            "newPassword": newPassword,
+            "oldPassword": oldPassword
+        })
+
+        response = requests.post(f"{self.api}/auth/change-password", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else:
+            self.sid = json.loads(response.text)["sId"]
+            return response.status_code
+
+    def request_code(self, email: str, changeEmail: bool = False):
+        data = {
+            "authType": 1,
+            "birthday": "",
+            "contentRegion": 0,
+            "email": email,
+            "gender": 0,
+            "invitationCode": "",
+            "nickname": "",
+            "password": "",
+            "phoneNumber": "",
+            "school": "",
+            "secret": "",
+            "securityCode": ""
+        }
+
+        if changeEmail is True: data["purpose"] = 3
+
+        data = json.dumps(data)
+        response = requests.post(f"{self.api}/auth/request-security-validation", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
     def check_invitation_code(self, code: str):
         data = json.dumps({
             "authType": 1,
@@ -121,11 +156,13 @@ class Client:
         else: return objects.AlertsInfo(json.loads(response.text)).AlertsInfo
 
     def get_alerts(self, type: str, size: int = 25):
-        if type.lower() == "activity": response = requests.get(f"{self.api}/alerts?groupId=1&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif type.lower() == "likes": response = requests.get(f"{self.api}/alerts?groupId=2&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif type.lower() == "followers": response = requests.get(f"{self.api}/alerts?groupId=3&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        if type.lower() == "activity": url = f"{self.api}/alerts?groupId=1&size={size}"
+        elif type.lower() == "likes": url = f"{self.api}/alerts?groupId=2&size={size}"
+        elif type.lower() == "followers": url = f"{self.api}/alerts?groupId=3&size={size}"
+        elif type.lower() == "announcements": url = f"{self.api}/alerts/global-announcement?size={size}"
         else: raise exceptions.WrongType()
 
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.AlertsList(json.loads(response.text)["list"]).AlertsList
 
@@ -167,18 +204,21 @@ class Client:
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
     def get_all_users(self, size: int = 25, pageToken: str = None):
-        if pageToken is None: response = requests.get(f"{self.api}/search/users?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        else: response = requests.get(f"{self.api}/search/users?size={size}&pageToken={pageToken}", headers=headers.Headers().headers, proxies=self.proxies)
+        if pageToken is not None: url = f"{self.api}/search/users?size={size}&pageToken={pageToken}"
+        else: url = f"{self.api}/search/users?size={size}"
+
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
-        else: return objects.GetAllUsers(json.loads(response.text)).GetAllUsers
+        else: return objects.GetUsers(json.loads(response.text)).GetUsers
 
     def get_namecards(self, gender: str, size: int = 25):
-        if gender.lower() == "all": response = requests.get(f"{self.api}/users/namecards?gender=0&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif gender.lower() == "male": response = requests.get(f"{self.api}/users/namecards?gender=1&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif gender.lower() == "female": response = requests.get(f"{self.api}/users/namecards?gender=2&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif gender.lower() == "other": response = requests.get(f"{self.api}/users/namecards?gender=100&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        if gender.lower() == "all": url = f"{self.api}/users/namecards?gender=0&size={size}"
+        elif gender.lower() == "male": url = f"{self.api}/users/namecards?gender=1&size={size}"
+        elif gender.lower() == "female": url = f"{self.api}/users/namecards?gender=2&size={size}"
+        elif gender.lower() == "other": url = f"{self.api}/users/namecards?gender=100&size={size}"
         else: raise exceptions.WrongType
 
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
@@ -187,11 +227,26 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Blog(json.loads(response.text)).Blog
 
-    def get_blogs(self, type: str, size: int = 25):
-        if type.lower() == "latest": response = requests.get(f"{self.api}/blogs?type=latest&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif type.lower() == "following": response = requests.get(f"{self.api}/blogs?type=following&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_blogs(self, type: str = "latest", circleId: str = None, start: int = 0, size: int = 25, pageToken: str = None):
+        if type.lower() == "latest":
+            if pageToken is not None: url = f"{self.api}/blogs?type=latest&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/blogs?type=latest&start={start}&size={size}"
+
+        elif type.lower() == "popular":
+            if pageToken is not None: url = f"{self.api}/blogs?type=popular&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/blogs?type=popular&start={start}&size={size}"
+
+        elif type.lower() == "following":
+            if pageToken is not None: url = f"{self.api}/blogs?type=following&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/blogs?type=following&start={start}&size={size}"
+
+        elif type.lower() == "circle":
+            if pageToken is not None: url = f"{self.api}/blogs?type=circle&circleId={circleId}&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/blogs?type=circle&circleId={circleId}&size={size}"
+
         else: raise exceptions.WrongType()
 
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetBlogs(json.loads(response.text)).GetBlogs
 
@@ -204,6 +259,72 @@ class Client:
         response = requests.get(f"{self.api}/votes?objectId={blogId}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.CommentList(json.loads(response.text)["list"]).CommentList
+
+    def post_blog(self, content: str, mediaList: list = None, circleIdList: list = None, visibility: str = None, commentsDisabled: bool = False, type: int = 1):
+        # all public pages - a
+        # public profile - b
+        # a,n b,y - 252 (linked circle, public profile)
+        # a,n b,n - 254 (linked circle only)
+        # a,y b,y - 0 (all)
+        # a,y b,n - 2 (linked circle, public pages)
+        # only me - 255
+
+        if circleIdList is not None: circleIdList = [int(i) for i in circleIdList]
+        if visibility is not None:
+            if "all" in visibility or "everyone" in visibility: visibility = 0
+            elif "circles" in visibility and "pages" in visibility: visibility = 2
+            elif "circles" in visibility and "profile" in visibility: visibility = 252
+            elif "circles" in visibility: visibility = 254
+            elif "nobody" in visibility or "none" in visibility: visibility = 255
+            else: visibility = 0
+
+        data = json.dumps({
+            "blogId": 0,
+            "circleIdList": circleIdList,
+            "content": content,
+            "extensions": {
+                "contentStatus": 1,
+                "commentDisabled": commentsDisabled
+            },
+            "mediaList": mediaList,
+            "status": 1,
+            "type": type,
+            "visibility": visibility,
+            "uid": 0
+        })
+
+        response = requests.post(f"{self.api}/blogs", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def edit_blog(self, blogId: str, content: str, mediaList: list = None, circleIdList: list = None, visibility: str = None, commentsDisabled: bool = False, type: int = 1):
+        if circleIdList is not None: circleIdList = [int(i) for i in circleIdList]
+        if visibility is not None:
+            if "all" in visibility or "everyone" in visibility: visibility = 0
+            elif "circles" in visibility and "pages" in visibility: visibility = 2
+            elif "circles" in visibility and "profile" in visibility: visibility = 252
+            elif "circles" in visibility: visibility = 254
+            elif "nobody" in visibility or "none" in visibility: visibility = 255
+            else: visibility = 0
+
+        data = json.dumps({
+            "blogId": 0,
+            "circleIdList": circleIdList,
+            "content": content,
+            "extensions": {
+                "contentStatus": 1,
+                "commentDisabled": commentsDisabled
+            },
+            "mediaList": mediaList,
+            "status": 1,
+            "type": type,
+            "visibility": visibility,
+            "uid": 0
+        })
+
+        response = requests.post(f"{self.api}/blogs/{blogId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
 
     def like_blog(self, circleId: str = "0", blogId: str = None, commentId: str = None):
         if blogId is not None: objId, objType = blogId, 2
@@ -249,35 +370,47 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def edit_profile(self, nickname: str = None, bio: str = None, background: BinaryIO = None, gender: str = None, school: str = None, address: str = None, isOnline: bool = None, showsSchool: bool = None, showsJoinedCircles: bool = None, showsLocation: bool = None, chatInvitationStatus: str = None, latitude: float = None, longitude: float = None):
-        if gender.lower() is not None and "male": gender = 1
-        elif gender.lower() is not None and "female": gender = 2
-        elif gender.lower() is not None and "other": gender = 100
-        else: raise exceptions.WrongType
+    def edit_profile(self, nickname: str = None, bio: str = None, background: BinaryIO = None, gender: str = None, school: str = None, address: str = None, showsSchool: bool = None, showsJoinedCircles: bool = None, showsLocation: bool = None, contentRegion: str = None, chatInvitationStatus: str = None, latitude: float = None, longitude: float = None):
+        if gender is not None:
+            if gender.lower() == "male": gender = 1
+            elif gender.lower() == "female": gender = 2
+            elif gender.lower() == "other": gender = 100
+            else: raise exceptions.WrongType
 
-        if background is not None: self.upload_media(file=background, fileType="image", target=2)
+        if background is not None: background = self.upload_media(file=background, fileType="image", target=2)
 
-        if showsSchool is not None and True: showsSchool = "1"
-        elif showsSchool is not None and False: showsSchool = "2"
-        else: raise exceptions.WrongType
+        if showsSchool is not None:
+            if showsSchool is True: showsSchool = "1"
+            elif showsSchool is False: showsSchool = "2"
+            else: raise exceptions.WrongType
 
-        if showsJoinedCircles is not None and True: showsJoinedCircles = "1"
-        elif showsJoinedCircles is not None and False: showsJoinedCircles = "2"
-        else: raise exceptions.WrongType
+        if showsJoinedCircles is not None:
+            if showsJoinedCircles is True: showsJoinedCircles = "1"
+            elif showsJoinedCircles is False: showsJoinedCircles = "2"
+            else: raise exceptions.WrongType
 
-        if showsLocation is not None and True: showsLocation = "1"
-        elif showsLocation is not None and False: showsLocation = "2"
-        else: raise exceptions.WrongType
+        if showsLocation is not None:
+            if showsLocation is True: showsLocation = "1"
+            elif showsLocation is False: showsLocation = "2"
+            else: raise exceptions.WrongType
 
-        if chatInvitationStatus.lower() is not None and "everyone" or "all": chatInvitationStatus = 1
-        elif chatInvitationStatus.lower() is not None and "following": chatInvitationStatus = 2
-        elif chatInvitationStatus.lower() is not None and "friends": chatInvitationStatus = 3
-        elif chatInvitationStatus.lower() is not None and "off" or "nobody": chatInvitationStatus = 4
-        else: raise exceptions.WrongType
+        if chatInvitationStatus is not None:
+            if chatInvitationStatus.lower() == "everyone" or chatInvitationStatus.lower() == "all": chatInvitationStatus = 1
+            elif chatInvitationStatus.lower() == "following": chatInvitationStatus = 2
+            elif chatInvitationStatus.lower() == "friends": chatInvitationStatus = 3
+            elif chatInvitationStatus.lower() == "off" or chatInvitationStatus.lower() == "nobody": chatInvitationStatus = 4
+            else: raise exceptions.WrongType
 
-        if isOnline is not None and True: status = 1
-        elif isOnline is not None and False: status = 0
-        else: raise exceptions.WrongType
+        if contentRegion is not None:
+            if contentRegion.lower() in ["english", "en"]: contentRegion = 1
+            elif contentRegion.lower() in ["arabic", "ar"]: contentRegion = 2
+            elif contentRegion.lower() in ["russian", "ru"]: contentRegion = 3
+            elif contentRegion.lower() in ["portuguese", "pt"]: contentRegion = 4
+            elif contentRegion.lower() in ["spanish", "es"]: contentRegion = 5
+            elif contentRegion.lower() in ["german", "de"]: contentRegion = 6
+            elif contentRegion.lower() in ["french", "fr"]: contentRegion = 7
+            elif contentRegion.lower() in ["rest", "other", "all"]: contentRegion = 100
+            else: raise exceptions.InvalidRegion(contentRegion)
 
         data = json.dumps({
             "nickname": nickname,
@@ -296,20 +429,27 @@ class Client:
             "showsJoinedCircles": showsJoinedCircles,
             "showsLocation": showsLocation,
             "chatInvitationStatus": chatInvitationStatus,
-            "status": status
+            "contentRegion": contentRegion,
+            "status": 1
         })
 
         response = requests.post(f"{self.api}/users/profile/{self.userId}/update-profile", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def edit_chat(self, chatId: str, title: str = None, content: str = None, pinChat: bool = None, doNotDisturb: bool = None, allowMembersInvite: bool = None):
+    def edit_chat(self, chatId: str, title: str = None, content: str = None, coHosts: list = None, pinChat: bool = None, doNotDisturb: bool = None, allowMembersInvite: bool = None):
         data, responses = {}, []
 
         if title is not None: data["title"] = title
         if content is not None: data["content"] = content
 
         data = json.dumps(data)
+
+        if coHosts is not None:
+            data_coHosts = json.dumps({"coHostUids": [int(i) for i in coHosts]})
+            response = requests.post(f"{self.api}/chat/threads/{chatId}/co-host", headers=headers.Headers(data=data_coHosts).headers, data=data_coHosts, proxies=self.proxies)
+            if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
+            else: responses.append(response.status_code)
 
         if pinChat is not None:
             if pinChat is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/pin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
@@ -341,11 +481,34 @@ class Client:
 
         return responses
 
-    def get_chat_threads(self, type: str = "joined", size: int = 25):
-        if type.lower() == "joined": response = requests.get(f"{self.api}/chat/joined-threads?start=0&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif type.lower() == "recommend": response = requests.get(f"{self.api}/chat/threads?type=recommend&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def transfer_host(self, chatId: str, userId: str):
+        data = json.dumps({})
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/host/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def kick(self, chatId: str, userId: str, blockRejoin: bool = False):
+        data = json.dumps({})
+        response = requests.delete(f"{self.api}/chat/threads/{chatId}/members/{userId}?block={blockRejoin}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def get_chat_threads(self, type: str = "joined", circleId: str = None, start: int = 0, size: int = 25, pageToken: str = None):
+        if type.lower() == "joined":
+            if pageToken is not None: url = f"{self.api}/chat/joined-threads?pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/chat/joined-threads?start={start}&size={size}"
+
+        elif type.lower() == "recommended":
+            if pageToken is not None: url = f"{self.api}/chat/threads?type=recommend&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/chat/threads?type=recommend&start={start}&size={size}"
+
+        elif type.lower() == "circle":
+            if pageToken is not None: url = f"{self.api}/chat/threads?type=circle&objectId={circleId}&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/chat/threads?type=circle&objectId={circleId}&start={start}&size={size}"
+
         else: raise exceptions.WrongType
 
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetChats(json.loads(response.text)).GetChats
 
@@ -388,12 +551,21 @@ class Client:
         else: return objects.Circle(json.loads(response.text)).Circle
 
     def get_circles(self, type: str, size: int = 25):
-        if type.lower() == "joined": response = requests.get(f"{self.api}/circles?type=joined&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        elif type.lower() == "latest": response = requests.get(f"{self.api}/circles?type=latest&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+        if type.lower() == "joined": url = f"{self.api}/circles?type=joined&size={size}"
+        elif type.lower() == "latest": url = f"{self.api}/circles?type=latest&size={size}"
         else: raise exceptions.WrongType()
 
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
-        else: return objects.CircleList(json.loads(response.text)["list"]).CircleList
+        else: return objects.GetUsers(json.loads(response.text)).GetUsers
+
+    def get_circle_users(self, circleId: str, type: str = "normal", start: int = 0, size: int = 25, pageToken: str = None):
+        if pageToken is not None: url = f"{self.api}/circles/{circleId}/members?type={type}&pageToken={pageToken}&size={size}"
+        else: url = f"{self.api}/circles/{circleId}/members?type={type}&start={start}&size={size}"
+
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.Circle(json.loads(response.text)).Circle
 
     def join_circle(self, circleId: str):
         data = json.dumps({})
@@ -432,6 +604,7 @@ class Client:
             "subCommentsCount": 0,
             "uid": 0
         })
+
         response = requests.post(f"{self.api}/comments", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
@@ -441,22 +614,32 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def share(self, userId: str = None, chatId: str = None, circleId: str = None):
-        if userId is not None: objId, objType, objPath = 0, 0, f"user/{userId}"
-        elif chatId is not None: objId, objType, objPath = 0, 0, f"chat/{chatId}"
-        elif circleId is not None: objId, objType, objPath = 0, 0, f"circle/{circleId}"
-        else: raise exceptions.SpecifyType()
+    def share(self, url: str = None, userId: str = None, chatId: str = None, circleId: str = None):
+        if url is not None:
+            if "www.projz.com" in url:
+                data = json.dumps({"link": url})
+                response = requests.post(f"{self.api}/links/path", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
 
-        data = json.dumps({
-            "objectId": objId,
-            "objectType": objType,
-            "path": objPath
-        })
+            else: raise exceptions.InvalidUrl(url)
 
-        response = requests.post(f"{self.api}/links/share", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        else:
+            if userId is not None: objId, objType, objPath = 0, 0, f"user/{userId}"
+            elif chatId is not None: objId, objType, objPath = 0, 0, f"chat/{chatId}"
+            elif circleId is not None: objId, objType, objPath = 0, 0, f"circle/{circleId}"
+            else: raise exceptions.SpecifyType()
+
+            data = json.dumps({
+                "objectId": objId,
+                "objectType": objType,
+                "path": objPath
+            })
+
+            response = requests.post(f"{self.api}/links/share", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Share(json.loads(response.text)).Share
 
+    # TODO : Fix this... Thanks Z for making this so complicated
     def upload_media(self, file: BinaryIO, fileType: str, target: int):
         data = file.read()
         file_head = file.read(16)
@@ -471,7 +654,7 @@ class Client:
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)
 
-    def send_message(self, message: str, chatId: str, messageType: int = 1):
+    def send_message(self, message: str, chatId: str, messageType: int = 1, media: dict = None, replyMessageId: str = None):
         if self.authenticated is False: raise exceptions.NotLoggedIn
 
         request = self.socket.send(json.dumps({
@@ -482,6 +665,11 @@ class Client:
                     "status": 1,
                     "threadId": int(chatId),
                     "uid": self.userId,
+                    "extensions": {
+                        "friendshipLevel": 1,
+                        "replyMessageId": replyMessageId
+                    },
+                    "media": media,
                     "refId": int(timestamp() * 1000),
                     "content": message,
                     "messageId": 0
@@ -491,15 +679,23 @@ class Client:
 
     def send_chat_active(self, chatId: str):
         if self.authenticated is False: raise exceptions.NotLoggedIn
+        return self.socket.send(json.dumps({"t": 6, "threadId": int(chatId)}))
 
-        request = self.socket.send(json.dumps({
-                "t": 6,
-                "threadId": int(chatId)
-                }))
+    def send_chat_unactive(self, chatId: str):
+        if self.authenticated is False: raise exceptions.NotLoggedIn
+        return self.socket.send(json.dumps({"t": 7, "threadId": int(chatId)}))
 
-        return request
+    def mark_message_as_read(self, chatId: str, messageId: str):
+        if self.authenticated is False: raise exceptions.NotLoggedIn
+        return self.socket.send(json.dumps({"t": 3, "threadId": int(chatId), "clientAck": {"threadId": int(chatId), "messageId": int(messageId), "markAsRead": True}}))
 
-    def send_control_message(self, message: str, chatId: str, messageType: int, messageId: str = None, userList: list = None):
+    def mark_chat_as_read(self, chatId: str):
+        data = json.dumps({})
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/mark-as-read", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def send_control_message(self, message: str, chatId: str, messageType: int, messageId: str = None, userList: list = None, extensions: dict = None):
         if userList is None: userList = []
 
         if messageId is None: messageId = 0
@@ -518,6 +714,7 @@ class Client:
             "threadActivityType": 0,
             "threadId": 0,
             "type": messageType,
+            "extensions": extensions,
             "content": message,
             "uid": 0,
             "userList": userList
@@ -579,6 +776,26 @@ class Client:
         })
 
         response = requests.post(f"{self.api}/chat/threads", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def start_roleplay(self, chatId: str, mode: str, roleIds: list):
+        if mode.lower() == "text": mode = 1
+        elif mode.lower() == "voice": mode = 2
+        else: raise exceptions.WrongType
+
+        data = json.dumps({
+            "mode": mode,
+            "roleIds": roleIds
+        })
+
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/start-role-play", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def end_roleplay(self, chatId: str):
+        data = json.dumps({})
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/end-role-play", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 

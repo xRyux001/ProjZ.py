@@ -5,7 +5,7 @@ with open("README.md", "r") as stream:
 
 setup(
     name = 'ProjZ.py',
-    version = '0.0.4',
+    version = '0.0.5',
     url = 'https://github.com/Slimakoi/ProjZ.py',
     download_url = 'https://github.com/Slimakoi/ProjZ.py/tarball/master',
     license = 'MIT',

@@ -43,6 +43,8 @@ class UserProfile:
         self.longitude = None
         self.latitude = None
         self.address = None
+        self.voiceBio = None
+        self.voiceBioUrl = None
 
     @property
     def UserProfile(self):
@@ -122,6 +124,10 @@ class UserProfile:
         except (KeyError, TypeError): pass
         try: self.address = self.json["location"]["address"]
         except (KeyError, TypeError): pass
+        try: self.voiceBio = self.json["voiceBio"]
+        except (KeyError, TypeError): pass
+        try: self.voiceBioUrl = self.json["voiceBio"]["baseUrl"]
+        except (KeyError, TypeError): pass
 
         return self
 
@@ -173,6 +179,8 @@ class UserProfileList:
         self.longitude = []
         self.latitude = []
         self.address = []
+        self.voiceBio = []
+        self.voiceBioUrl = []
 
     @property
     def UserProfileList(self):
@@ -255,6 +263,10 @@ class UserProfileList:
             except (KeyError, TypeError): self.latitude.append(None)
             try: self.address.append(obj["location"]["address"])
             except (KeyError, TypeError): self.address.append(None)
+            try: self.voiceBio.append(obj["voiceBio"])
+            except (KeyError, TypeError): self.voiceBio.append(None)
+            try: self.voiceBioUrl.append(obj["voiceBio"]["baseUrl"])
+            except (KeyError, TypeError): self.voiceBioUrl.append(None)
 
         return self
 
@@ -266,10 +278,13 @@ class GetBlogs:
         except (KeyError, TypeError): self.blog = None
 
         self.nextPageToken = None
+        self.totalPages = None
 
     @property
     def GetBlogs(self):
         try: self.nextPageToken = self.json["pagination"]["nextPageToken"]
+        except (KeyError, TypeError): pass
+        try: self.totalPages = self.json["pagination"]["total"]
         except (KeyError, TypeError): pass
 
         return self
@@ -282,17 +297,31 @@ class GetChats:
         except (KeyError, TypeError): self.chat = None
 
         self.nextPageToken = None
+        self.totalPages = None
         self.isEnd = None
         self.threadCheckList = None
+        self.lastReadMessageId = []
+        self.lastMessageId = []
+        self.chatId = []
 
     @property
     def GetChats(self):
         try: self.nextPageToken = self.json["pagination"]["nextPageToken"]
         except (KeyError, TypeError): pass
+        try: self.totalPages = self.json["pagination"]["total"]
+        except (KeyError, TypeError): pass
         try: self.isEnd = self.json["isEnd"]
         except (KeyError, TypeError): pass
         try: self.threadCheckList = self.json["threadCheckList"]
         except (KeyError, TypeError): pass
+
+        for x in self.threadCheckList:
+            try: self.lastReadMessageId.append(x["lastReadMessageId"])
+            except (KeyError, TypeError): self.lastReadMessageId.append(None)
+            try: self.lastMessageId.append(x["lastMessageId"])
+            except (KeyError, TypeError): self.lastMessageId.append(None)
+            try: self.chatId.append(x["threadId"])
+            except (KeyError, TypeError): self.chatId.append(None)
 
         return self
 
@@ -304,18 +333,21 @@ class GetChatMessages:
         except (KeyError, TypeError): self.message = None
 
         self.nextPageToken = None
+        self.totalPages = None
         self.isEnd = None
 
     @property
     def GetChatMessages(self):
         try: self.nextPageToken = self.json["pagination"]["nextPageToken"]
         except (KeyError, TypeError): pass
+        try: self.totalPages = self.json["pagination"]["total"]
+        except (KeyError, TypeError): pass
         try: self.isEnd = self.json["isEnd"]
         except (KeyError, TypeError): pass
 
         return self
 
-class GetAllUsers:
+class GetUsers:
     def __init__(self, data):
         self.json = data
 
@@ -323,11 +355,14 @@ class GetAllUsers:
         except (KeyError, TypeError): self.profile = None
 
         self.nextPageToken = None
+        self.totalPages = None
         self.isEnd = None
 
     @property
-    def GetAllUsers(self):
+    def GetUsers(self):
         try: self.nextPageToken = self.json["pagination"]["nextPageToken"]
+        except (KeyError, TypeError): pass
+        try: self.totalPages = self.json["pagination"]["total"]
         except (KeyError, TypeError): pass
         try: self.isEnd = self.json["isEnd"]
         except (KeyError, TypeError): pass
@@ -358,6 +393,12 @@ class Blog:
         self.extensions = None
         self.contentRegion = None
         self.language = None
+        self.updatedTime = None
+        self.votedValue = None
+        self.visibility = None
+        self.sharedThreadId = None
+        self.commentDisabled = None
+        self.popupImage = None
 
     @property
     def Blog(self):
@@ -383,9 +424,21 @@ class Blog:
         except (KeyError, TypeError): pass
         try: self.extensions = self.json["extensions"]
         except (KeyError, TypeError): pass
+        try: self.sharedThreadId = self.json["extensions"]["sharedThreadId"]
+        except (KeyError, TypeError): pass
+        try: self.commentDisabled = self.json["extensions"]["commentDisabled"]
+        except (KeyError, TypeError): pass
+        try: self.popupImage = self.json["extensions"]["popupImage"]
+        except (KeyError, TypeError): pass
         try: self.contentRegion = self.json["contentRegion"]
         except (KeyError, TypeError): pass
         try: self.language = self.json["language"]
+        except (KeyError, TypeError): pass
+        try: self.updatedTime = self.json["updatedTime"]
+        except (KeyError, TypeError): pass
+        try: self.votedValue = self.json["votedValue"]
+        except (KeyError, TypeError): pass
+        try: self.visibility = self.json["visibility"]
         except (KeyError, TypeError): pass
 
         return self
@@ -419,6 +472,12 @@ class BlogList:
         self.extensions = []
         self.contentRegion = []
         self.language = []
+        self.updatedTime = []
+        self.votedValue = []
+        self.visibility = []
+        self.sharedThreadId = []
+        self.commentDisabled = []
+        self.popupImage = []
 
     @property
     def BlogList(self):
@@ -445,10 +504,22 @@ class BlogList:
             except (KeyError, TypeError): self.commentsCount.append(None)
             try: self.extensions.append(obj["extensions"])
             except (KeyError, TypeError): self.extensions.append(None)
+            try: self.sharedThreadId.append(obj["extensions"]["sharedThreadId"])
+            except (KeyError, TypeError): self.sharedThreadId.append(None)
+            try: self.commentDisabled.append(obj["extensions"]["commentDisabled"])
+            except (KeyError, TypeError): self.commentDisabled.append(None)
+            try: self.popupImage.append(obj["extensions"]["popupImage"])
+            except (KeyError, TypeError): self.popupImage.append(None)
             try: self.contentRegion.append(obj["contentRegion"])
             except (KeyError, TypeError): self.contentRegion.append(None)
             try: self.language.append(obj["language"])
             except (KeyError, TypeError): self.language.append(None)
+            try: self.updatedTime.append(obj["updatedTime"])
+            except (KeyError, TypeError): self.updatedTime.append(None)
+            try: self.votedValue.append(obj["votedValue"])
+            except (KeyError, TypeError): self.votedValue.append(None)
+            try: self.visibility.append(obj["visibility"])
+            except (KeyError, TypeError): self.visibility.append(None)
 
         return self
 
@@ -462,6 +533,8 @@ class Chat:
         except (KeyError, TypeError): self.membersSummary = None
         try: self.latestMessage = Message(data["latestMessage"]).Message
         except (KeyError, TypeError): self.latestMessage = None
+        try: self.circleList = CircleList(data["circleList"]).CircleList
+        except (KeyError, TypeError): self.circleList = None
 
         self.chatId = None
         self.status = None
@@ -485,6 +558,13 @@ class Chat:
         self.alertOption = None
         self.currentMemberInfo = None
         self.blacklist = None
+        self.chatMemberStatus = None
+        self.isPinned = None
+        self.lastReadMessageId = None
+        self.visibility = None
+        self.rolesCount = None
+        self.inviteMessageContent = None
+        self.circleIdList = None
 
     @property
     def Chat(self):
@@ -532,12 +612,26 @@ class Chat:
         except (KeyError, TypeError): pass
         try: self.currentMemberInfo = self.json["currentMemberInfo"]
         except (KeyError, TypeError): pass
+        try: self.chatMemberStatus = self.json["currentMemberInfo"]["chatMemberStatus"]
+        except (KeyError, TypeError): pass
+        try: self.isPinned = self.json["currentMemberInfo"]["isPinned"]
+        except (KeyError, TypeError): pass
+        try: self.lastReadMessageId = self.json["currentMemberInfo"]["lastReadMessageId"]
+        except (KeyError, TypeError): pass
+        try: self.visibility = self.json["visibility"]
+        except (KeyError, TypeError): pass
+        try: self.rolesCount = self.json["rolesCount"]
+        except (KeyError, TypeError): pass
+        try: self.inviteMessageContent = self.json["inviteMessageContent"]
+        except (KeyError, TypeError): pass
+        try: self.circleIdList = self.json["circleIdList"]
+        except (KeyError, TypeError): pass
 
         return self
 
 class ChatList:
     def __init__(self, data):
-        _host, _membersSummary, _latestMessage = [], [], []
+        _host, _membersSummary, _latestMessage, _circleList = [], [], [], []
         self.json = data
 
         for obj_ in data:
@@ -547,10 +641,13 @@ class ChatList:
             except (KeyError, TypeError): _membersSummary.append(None)
             try: _latestMessage.append(obj_["latestMessage"])
             except (KeyError, TypeError): _latestMessage.append(None)
+            try: _circleList.append(CircleList(obj_["circleList"]).CircleList)
+            except (KeyError, TypeError): _circleList.append(None)
 
         self.host = UserProfileList(_host).UserProfileList
         self.membersSummary = _membersSummary
         self.latestMessage = MessageList(_latestMessage).MessageList
+        self.circleList = _circleList
         self.chatId = []
         self.status = []
         self.type = []
@@ -573,6 +670,13 @@ class ChatList:
         self.alertOption = []
         self.currentMemberInfo = []
         self.blacklist = []
+        self.chatMemberStatus = []
+        self.isPinned = []
+        self.lastReadMessageId = []
+        self.visibility = []
+        self.rolesCount = []
+        self.inviteMessageContent = []
+        self.circleIdList = []
 
     @property
     def ChatList(self):
@@ -621,6 +725,20 @@ class ChatList:
             except (KeyError, TypeError): self.alertOption.append(None)
             try: self.currentMemberInfo.append(obj["currentMemberInfo"])
             except (KeyError, TypeError): self.currentMemberInfo.append(None)
+            try: self.chatMemberStatus.append(obj["currentMemberInfo"]["chatMemberStatus"])
+            except (KeyError, TypeError): self.chatMemberStatus.append(None)
+            try: self.lastReadMessageId.append(obj["currentMemberInfo"]["lastReadMessageId"])
+            except (KeyError, TypeError): self.lastReadMessageId.append(None)
+            try: self.isPinned.append(obj["currentMemberInfo"]["isPinned"])
+            except (KeyError, TypeError): self.isPinned.append(None)
+            try: self.visibility.append(obj["visibility"])
+            except (KeyError, TypeError): self.visibility.append(None)
+            try: self.rolesCount.append(obj["rolesCount"])
+            except (KeyError, TypeError): self.rolesCount.append(None)
+            try: self.inviteMessageContent.append(obj["inviteMessageContent"])
+            except (KeyError, TypeError): self.inviteMessageContent.append(None)
+            try: self.circleIdList.append(obj["circleIdList"])
+            except (KeyError, TypeError): self.circleIdList.append(None)
 
         return self
 
@@ -636,6 +754,8 @@ class Message:
         except (KeyError, TypeError): self.userList = None
         try: self.roleList = RoleList(data["roleList"]).RoleList
         except (KeyError, TypeError): self.roleList = None
+        try: self.replyMessage = Message(data["replyMessage"]).Message
+        except (KeyError, TypeError): self.replyMessage = None
 
         self.content = None
         self.messageId = None
@@ -655,6 +775,8 @@ class Message:
         self.rolePlayMode = None
         self.cover = None
         self.coverUrl = None
+        self.coHostIds = None
+        self.replyMessageId = None
 
     @property
     def Message(self):
@@ -680,6 +802,10 @@ class Message:
         except (KeyError, TypeError): pass
         try: self.invitedIds = self.json["extensions"]["invitedUids"]
         except (KeyError, TypeError): pass
+        try: self.coHostIds = self.json["extensions"]["coHostUids"]
+        except (KeyError, TypeError): pass
+        try: self.replyMessageId = self.json["extensions"]["replyMessageId"]
+        except (KeyError, TypeError): pass
         try: self.media = self.json["media"]
         except (KeyError, TypeError): pass
         try: self.mediaUrl = self.json["media"]["baseUrl"]
@@ -699,7 +825,7 @@ class Message:
 
 class MessageList:
     def __init__(self, data):
-        _author, _role, _userList, _roleList = [], [], [], []
+        _author, _role, _userList, _roleList, _replyMessage = [], [], [], [], []
         self.json = data
 
         for obj_ in data:
@@ -711,11 +837,14 @@ class MessageList:
             except (KeyError, TypeError): _userList.append(None)
             try: _roleList.append(RoleList(obj_["roleList"]).RoleList)
             except (KeyError, TypeError): _roleList.append(None)
+            try: _replyMessage.append(obj_["replyMessage"])
+            except (KeyError, TypeError): _replyMessage.append(None)
 
         self.author = UserProfileList(_author).UserProfileList
         self.userList = _userList
         self.role = RoleList(_role).RoleList
         self.roleList = _roleList
+        self.replyMessage = MessageList(_replyMessage).MessageList
         self.content = []
         self.messageId = []
         self.chatId = []
@@ -734,6 +863,8 @@ class MessageList:
         self.rolePlayMode = []
         self.cover = []
         self.coverUrl = []
+        self.coHostIds = []
+        self.replyMessageId = []
 
     @property
     def MessageList(self):
@@ -760,6 +891,10 @@ class MessageList:
             except (KeyError, TypeError): self.roleId.append(None)
             try: self.invitedIds.append(obj["extensions"]["invitedUids"])
             except (KeyError, TypeError): self.invitedIds.append(None)
+            try: self.coHostIds.append(obj["extensions"]["coHostUids"])
+            except (KeyError, TypeError): self.coHostIds.append(None)
+            try: self.replyMessageId.append(obj["extensions"]["replyMessageId"])
+            except (KeyError, TypeError): self.replyMessageId.append(None)
             try: self.media.append(obj["media"])
             except (KeyError, TypeError): self.media.append(None)
             try: self.mediaUrl.append(obj["media"]["baseUrl"])
@@ -1226,6 +1361,7 @@ class Role:
         self.description = None
         self.createdTime = None
         self.inUse = None
+        self.playerId = None
 
     @property
     def Role(self):
@@ -1247,6 +1383,8 @@ class Role:
         except (KeyError, TypeError): pass
         try: self.inUse = self.json["inUse"]
         except (KeyError, TypeError): pass
+        try: self.playerId = self.json["playerUid"]
+        except (KeyError, TypeError): pass
 
         return self
 
@@ -1262,6 +1400,7 @@ class RoleList:
         self.description = []
         self.createdTime = []
         self.inUse = []
+        self.playerId = []
 
     @property
     def RoleList(self):
@@ -1284,5 +1423,7 @@ class RoleList:
             except (KeyError, TypeError): self.createdTime.append(None)
             try: self.inUse.append(obj["inUse"])
             except (KeyError, TypeError): self.inUse.append(None)
+            try: self.playerId.append(obj["playerUid"])
+            except (KeyError, TypeError): self.playerId.append(None)
 
         return self
