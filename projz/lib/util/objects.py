@@ -45,6 +45,7 @@ class UserProfile:
         self.address = None
         self.voiceBio = None
         self.voiceBioUrl = None
+        self.chatJoinedTime = None
 
     @property
     def UserProfile(self):
@@ -128,6 +129,8 @@ class UserProfile:
         except (KeyError, TypeError): pass
         try: self.voiceBioUrl = self.json["voiceBio"]["baseUrl"]
         except (KeyError, TypeError): pass
+        try: self.chatJoinedTime = self.json["chatJoinedTime"]
+        except (KeyError, TypeError): pass
 
         return self
 
@@ -181,6 +184,7 @@ class UserProfileList:
         self.address = []
         self.voiceBio = []
         self.voiceBioUrl = []
+        self.chatJoinedTime = []
 
     @property
     def UserProfileList(self):
@@ -267,6 +271,8 @@ class UserProfileList:
             except (KeyError, TypeError): self.voiceBio.append(None)
             try: self.voiceBioUrl.append(obj["voiceBio"]["baseUrl"])
             except (KeyError, TypeError): self.voiceBioUrl.append(None)
+            try: self.chatJoinedTime.append(obj["chatJoinedTime"])
+            except (KeyError, TypeError): self.chatJoinedTime.append(None)
 
         return self
 
@@ -399,6 +405,7 @@ class Blog:
         self.sharedThreadId = None
         self.commentDisabled = None
         self.popupImage = None
+        self.popupImageUrl = None
 
     @property
     def Blog(self):
@@ -429,6 +436,8 @@ class Blog:
         try: self.commentDisabled = self.json["extensions"]["commentDisabled"]
         except (KeyError, TypeError): pass
         try: self.popupImage = self.json["extensions"]["popupImage"]
+        except (KeyError, TypeError): pass
+        try: self.popupImageUrl = self.json["extensions"]["popupImage"]["baseUrl"]
         except (KeyError, TypeError): pass
         try: self.contentRegion = self.json["contentRegion"]
         except (KeyError, TypeError): pass
@@ -478,6 +487,7 @@ class BlogList:
         self.sharedThreadId = []
         self.commentDisabled = []
         self.popupImage = []
+        self.popupImageUrl = []
 
     @property
     def BlogList(self):
@@ -510,6 +520,8 @@ class BlogList:
             except (KeyError, TypeError): self.commentDisabled.append(None)
             try: self.popupImage.append(obj["extensions"]["popupImage"])
             except (KeyError, TypeError): self.popupImage.append(None)
+            try: self.popupImageUrl.append(obj["extensions"]["popupImage"]["baseUrl"])
+            except (KeyError, TypeError): self.popupImageUrl.append(None)
             try: self.contentRegion.append(obj["contentRegion"])
             except (KeyError, TypeError): self.contentRegion.append(None)
             try: self.language.append(obj["language"])
@@ -1132,6 +1144,28 @@ class CommentList:
 
         return self
 
+class GetAlerts:
+    def __init__(self, data):
+        self.json = data
+
+        try: self.alert = AlertsList(data["list"]).AlertsList
+        except (KeyError, TypeError): self.alert = None
+
+        self.nextPageToken = None
+        self.totalPages = None
+        self.isEnd = None
+
+    @property
+    def GetAlerts(self):
+        try: self.nextPageToken = self.json["pagination"]["nextPageToken"]
+        except (KeyError, TypeError): pass
+        try: self.totalPages = self.json["pagination"]["total"]
+        except (KeyError, TypeError): pass
+        try: self.isEnd = self.json["isEnd"]
+        except (KeyError, TypeError): pass
+
+        return self
+
 class AlertsList:
     def __init__(self, data):
         _operator = []
@@ -1425,5 +1459,54 @@ class RoleList:
             except (KeyError, TypeError): self.inUse.append(None)
             try: self.playerId.append(obj["playerUid"])
             except (KeyError, TypeError): self.playerId.append(None)
+
+        return self
+
+class InviteCodeList:
+    def __init__(self, data):
+        self.json = data
+        self.inviteId = []
+        self.code = []
+        self.createdTime = []
+        self.lastReadTime = []
+        self.status = []
+        self.label = []
+        self.generation = []
+
+    @property
+    def InviteCodeList(self):
+        for obj in self.json:
+            try: self.inviteId.append(obj["uid"])
+            except (KeyError, TypeError): self.inviteId.append(None)
+            try: self.code.append(obj["code"])
+            except (KeyError, TypeError): self.code.append(None)
+            try: self.createdTime.append(obj["createdTime"])
+            except (KeyError, TypeError): self.createdTime.append(None)
+            try: self.lastReadTime.append(obj["lastReadTime"])
+            except (KeyError, TypeError): self.lastReadTime.append(None)
+            try: self.status.append(obj["status"])
+            except (KeyError, TypeError): self.status.append(None)
+            try: self.label.append(obj["label"])
+            except (KeyError, TypeError): self.label.append(None)
+            try: self.generation.append(obj["generation"])
+            except (KeyError, TypeError): self.generation.append(None)
+
+        return self
+
+class InviteCodeCount:
+    def __init__(self, data):
+        self.json = data
+        self.totalCount = None
+        self.availableCount = None
+        self.usedCount = None
+
+    @property
+    def InviteCodeCount(self):
+        try: self.totalCount = self.json["totalCount"]
+        except (KeyError, TypeError): pass
+        try: self.availableCount = self.json["availableCount"]
+        except (KeyError, TypeError): pass
+        try: self.usedCount = self.json["usedCount"]
+        except (KeyError, TypeError): pass
 
         return self

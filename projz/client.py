@@ -1,15 +1,22 @@
 import json
 import requests
 
+
 from .socket import SocketHandler, Callbacks
 from .lib.util import exceptions, headers, device, objects
+from uuid import UUID
+from os import urandom
+from random import choice
 from typing import BinaryIO
+from binascii import hexlify
+from io import BufferedReader
 from time import time as timestamp
+from tinytag import TinyTag, TinyTagException
 
 device = device.DeviceGenerator()
 
 class Client:
-    def __init__(self, callback = Callbacks, proxies = None, socket_trace = False):
+    def __init__(self, callback = Callbacks, proxies: dict = None, certificatePath = None, socket_trace = False):
         self.api = "https://api.projz.com/v1"
         self.authenticated = False
         self.configured = False
@@ -18,12 +25,17 @@ class Client:
         self.socket = SocketHandler(self, socket_trace=socket_trace)
         self.callbacks = callback(self)
         self.proxies = proxies
+        self.certificatePath = certificatePath
 
         self.json = None
         self.sid = None
         self.userId = None
         self.account = None
         self.profile = None
+
+    @staticmethod
+    def type_(obj):
+        return type(obj)
 
     def login(self, email: str = None, phone_number: str = None, *, password: str):
         if email is not None: authType = 1
@@ -45,7 +57,7 @@ class Client:
             "securityCode": ""
         })
 
-        response = requests.post(f"{self.api}/auth/login", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/auth/login", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
 
         else:
@@ -62,7 +74,7 @@ class Client:
     def logout(self):
         if self.authenticated is False: raise exceptions.NotLoggedIn()
         data = json.dumps({})
-        response = requests.post(f"{self.api}/auth/logout", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/auth/logout", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
 
         else:
@@ -86,7 +98,7 @@ class Client:
             "securityCode": securityCode
         })
 
-        response = requests.post(f"{self.api}/auth/register", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/auth/register", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
@@ -96,15 +108,14 @@ class Client:
             "oldPassword": oldPassword
         })
 
-        response = requests.post(f"{self.api}/auth/change-password", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/auth/change-password", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else:
             self.sid = json.loads(response.text)["sId"]
             return response.status_code
 
-    def request_code(self, email: str, changeEmail: bool = False):
+    def request_code(self, email: str, phoneNumber: str, changeEmail: bool = False, changePhoneNumber: bool = False):
         data = {
-            "authType": 1,
             "birthday": "",
             "contentRegion": 0,
             "email": email,
@@ -112,16 +123,17 @@ class Client:
             "invitationCode": "",
             "nickname": "",
             "password": "",
-            "phoneNumber": "",
+            "phoneNumber": phoneNumber,
             "school": "",
             "secret": "",
             "securityCode": ""
         }
 
-        if changeEmail is True: data["purpose"] = 3
+        if changeEmail is True: data["authType"], data["purpose"] = 1, 3
+        if changePhoneNumber is True: data["authType"], data["purpose"] = 2, 4
 
         data = json.dumps(data)
-        response = requests.post(f"{self.api}/auth/request-security-validation", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/auth/request-security-validation", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
@@ -141,65 +153,84 @@ class Client:
             "securityCode": ""
         })
 
-        response = requests.post(f"{self.api}/auth/check-invitation-code", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/auth/check-invitation-code", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
     def get_account_info(self):
-        response = requests.get(f"{self.api}/auth/account", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(f"{self.api}/auth/account", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)
 
     def get_alerts_info(self):
-        response = requests.get(f"{self.api}/alerts/check", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(f"{self.api}/alerts/check", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.AlertsInfo(json.loads(response.text)).AlertsInfo
 
-    def get_alerts(self, type: str, size: int = 25):
-        if type.lower() == "activity": url = f"{self.api}/alerts?groupId=1&size={size}"
-        elif type.lower() == "likes": url = f"{self.api}/alerts?groupId=2&size={size}"
-        elif type.lower() == "followers": url = f"{self.api}/alerts?groupId=3&size={size}"
-        elif type.lower() == "announcements": url = f"{self.api}/alerts/global-announcement?size={size}"
-        else: raise exceptions.WrongType()
+    def get_alerts(self, type: str, size: int = 25, pageToken: str = None):
+        if type.lower() == "activity":
+            if pageToken is not None: url = f"{self.api}/alerts?groupId=1&size={size}&pageToken={pageToken}"
+            else: url = f"{self.api}/alerts?groupId=1&size={size}"
+        elif type.lower() == "likes":
+            if pageToken is not None: url = f"{self.api}/alerts?groupId=2&size={size}&pageToken={pageToken}"
+            else: url = f"{self.api}/alerts?groupId=2&size={size}"
+        elif type.lower() == "followers":
+            if pageToken is not None: url = f"{self.api}/alerts?groupId=3&size={size}&pageToken={pageToken}"
+            else: url = f"{self.api}/alerts?groupId=3&size={size}"
+        elif type.lower() == "announcements":
+            if pageToken is not None: url = f"{self.api}/alerts/global-announcement?size={size}&pageToken={pageToken}"
+            else: url = f"{self.api}/alerts/global-announcement?size={size}"
 
-        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        else: raise exceptions.WrongType(type)
+
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
-        else: return objects.AlertsList(json.loads(response.text)["list"]).AlertsList
+        else: return objects.GetAlerts(json.loads(response.text)).GetAlerts
+
+    def get_invitation_codes(self, size: int = 25):
+        response = requests.get(f"{self.api}/users/invitation-codes?size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.InviteCodeList(json.loads(response.text)["list"]).InviteCodeList
+
+    def get_invitation_count(self):
+        response = requests.get(f"{self.api}/users/invitation-codes/count", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return objects.InviteCodeCount(json.loads(response.text)).InviteCodeCount
 
     # Todo : Figure out what data is returned
     def get_blocked_users(self):
-        response = requests.get(f"{self.api}/users/block-uids", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(f"{self.api}/users/block-uids", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)["blockedByMeList"]
 
     # Todo : Figure out what data is returned
     def get_blocker_users(self):
-        response = requests.get(f"{self.api}/users/block-uids", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(f"{self.api}/users/block-uids", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)["blockMeList"]
 
     def get_content_regions(self):
-        response = requests.get(f"{self.api}/configs/content-regions", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(f"{self.api}/configs/content-regions", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.ContentRegionList(json.loads(response.text)["list"]).ContentRegionList
 
     def get_invitation_code_info(self):
-        response = requests.get(f"{self.api}/users/invitation-code-info", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(f"{self.api}/users/invitation-code-info", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)
 
-    def get_user_info(self, userId: str):
-        response = requests.get(f"{self.api}/users/profile/{userId}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_user_info(self, userId: int):
+        response = requests.get(f"{self.api}/users/profile/{userId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfile(json.loads(response.text)).UserProfile
 
-    def get_user_following(self, userId: str, size: int = 25):
-        response = requests.get(f"{self.api}/users/membership/{userId}?type=following&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_user_following(self, userId: int, size: int = 25):
+        response = requests.get(f"{self.api}/users/membership/{userId}?type=following&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
-    def get_user_followers(self, userId: str, size: int = 25):
-        response = requests.get(f"{self.api}/users/membership/{userId}?type=follower&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_user_followers(self, userId: int, size: int = 25):
+        response = requests.get(f"{self.api}/users/membership/{userId}?type=follower&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
@@ -207,27 +238,39 @@ class Client:
         if pageToken is not None: url = f"{self.api}/search/users?size={size}&pageToken={pageToken}"
         else: url = f"{self.api}/search/users?size={size}"
 
-        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetUsers(json.loads(response.text)).GetUsers
 
-    def get_namecards(self, gender: str, size: int = 25):
-        if gender.lower() == "all": url = f"{self.api}/users/namecards?gender=0&size={size}"
-        elif gender.lower() == "male": url = f"{self.api}/users/namecards?gender=1&size={size}"
-        elif gender.lower() == "female": url = f"{self.api}/users/namecards?gender=2&size={size}"
-        elif gender.lower() == "other": url = f"{self.api}/users/namecards?gender=100&size={size}"
-        else: raise exceptions.WrongType
+    def get_namecards(self, gender: str, size: int = 25, pageToken: str = None):
+        if gender.lower() == "all":
+            if pageToken is not None: url = f"{self.api}/users/namecards?gender=0&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/users/namecards?gender=0&size={size}"
 
-        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        elif gender.lower() == "male":
+            if pageToken is not None: url = f"{self.api}/users/namecards?gender=1&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/users/namecards?gender=1&size={size}"
+
+        elif gender.lower() == "female":
+            if pageToken is not None: url = f"{self.api}/users/namecards?gender=2&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/users/namecards?gender=2&size={size}"
+
+        elif gender.lower() == "other":
+            if pageToken is not None: url = f"{self.api}/users/namecards?gender=100&pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/users/namecards?gender=100&size={size}"
+
+        else: raise exceptions.WrongType(gender)
+
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
-        else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
+        else: return objects.GetUsers(json.loads(response.text)).GetUsers
 
-    def get_blog_info(self, blogId: str):
-        response = requests.get(f"{self.api}/blogs/{blogId}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_blog_info(self, blogId: int):
+        response = requests.get(f"{self.api}/blogs/{blogId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Blog(json.loads(response.text)).Blog
 
-    def get_blogs(self, type: str = "latest", circleId: str = None, start: int = 0, size: int = 25, pageToken: str = None):
+    def get_blogs(self, type: str = "latest", circleId: int = None, start: int = 0, size: int = 25, pageToken: str = None):
         if type.lower() == "latest":
             if pageToken is not None: url = f"{self.api}/blogs?type=latest&pageToken={pageToken}&size={size}"
             else: url = f"{self.api}/blogs?type=latest&start={start}&size={size}"
@@ -244,23 +287,23 @@ class Client:
             if pageToken is not None: url = f"{self.api}/blogs?type=circle&circleId={circleId}&pageToken={pageToken}&size={size}"
             else: url = f"{self.api}/blogs?type=circle&circleId={circleId}&size={size}"
 
-        else: raise exceptions.WrongType()
+        else: raise exceptions.WrongType(type)
 
-        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetBlogs(json.loads(response.text)).GetBlogs
 
-    def get_blog_comments(self, blogId: str, size: int = 25):
-        response = requests.get(f"{self.api}/comments?{blogId}&replyId=0&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_blog_comments(self, blogId: int, size: int = 25):
+        response = requests.get(f"{self.api}/comments?{blogId}&replyId=0&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.CommentList(json.loads(response.text)["list"]).CommentList
 
-    def get_blog_likes(self, blogId: str, size: int = 25):
-        response = requests.get(f"{self.api}/votes?objectId={blogId}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_blog_likes(self, blogId: int, size: int = 25):
+        response = requests.get(f"{self.api}/votes?objectId={blogId}&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.CommentList(json.loads(response.text)["list"]).CommentList
 
-    def post_blog(self, content: str, mediaList: list = None, circleIdList: list = None, visibility: str = None, commentsDisabled: bool = False, type: int = 1):
+    def post_blog(self, content: str, fileList: list = None, circleIdList: list = None, visibility: str = None, commentsDisabled: bool = False):
         # all public pages - a
         # public profile - b
         # a,n b,y - 252 (linked circle, public profile)
@@ -269,7 +312,46 @@ class Client:
         # a,y b,n - 2 (linked circle, public pages)
         # only me - 255
 
-        if circleIdList is not None: circleIdList = [int(i) for i in circleIdList]
+        if circleIdList is not None: circleIdList = [i for i in circleIdList]
+        if visibility is not None:
+            if "all" in visibility or "everyone" in visibility: visibility = 0
+            elif "circles" in visibility and "pages" in visibility: visibility = 2
+            elif "circles" in visibility and "profile" in visibility: visibility = 252
+            elif "circles" in visibility: visibility = 254
+            elif "nobody" in visibility or "none" in visibility: visibility = 255
+            else: visibility = 0
+
+        if fileList is not None:
+            mediaList = []
+            for file in fileList:
+                if type(file) == BinaryIO or type(file) == BufferedReader:
+                    mediaList.append(self.upload_media(file=file, target=3))
+                else:
+                    raise exceptions.InvalidFile(type(file))
+
+        else: mediaList = None
+
+        data = json.dumps({
+            "blogId": 0,
+            "circleIdList": circleIdList,
+            "content": content,
+            "extensions": {
+                "contentStatus": 1,
+                "commentDisabled": commentsDisabled
+            },
+            "mediaList": mediaList,
+            "status": 1,
+            "type": 1,
+            "visibility": visibility,
+            "uid": 0
+        })
+
+        response = requests.post(f"{self.api}/blogs", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def edit_blog(self, blogId: int, content: str, mediaList: list = None, circleIdList: list = None, visibility: str = None, commentsDisabled: bool = False, type: int = 1):
+        if circleIdList is not None: circleIdList = [i for i in circleIdList]
         if visibility is not None:
             if "all" in visibility or "everyone" in visibility: visibility = 0
             elif "circles" in visibility and "pages" in visibility: visibility = 2
@@ -293,113 +375,97 @@ class Client:
             "uid": 0
         })
 
-        response = requests.post(f"{self.api}/blogs", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/blogs/{blogId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def edit_blog(self, blogId: str, content: str, mediaList: list = None, circleIdList: list = None, visibility: str = None, commentsDisabled: bool = False, type: int = 1):
-        if circleIdList is not None: circleIdList = [int(i) for i in circleIdList]
-        if visibility is not None:
-            if "all" in visibility or "everyone" in visibility: visibility = 0
-            elif "circles" in visibility and "pages" in visibility: visibility = 2
-            elif "circles" in visibility and "profile" in visibility: visibility = 252
-            elif "circles" in visibility: visibility = 254
-            elif "nobody" in visibility or "none" in visibility: visibility = 255
-            else: visibility = 0
+    def delete_blog(self, blogId: int, circleId: int = None):
+        if circleId is not None: url = f"{self.api}/circles/{circleId}/blogs/{blogId}"
+        else: url = f"{self.api}/blogs/{blogId}"
 
-        data = json.dumps({
-            "blogId": 0,
-            "circleIdList": circleIdList,
-            "content": content,
-            "extensions": {
-                "contentStatus": 1,
-                "commentDisabled": commentsDisabled
-            },
-            "mediaList": mediaList,
-            "status": 1,
-            "type": type,
-            "visibility": visibility,
-            "uid": 0
-        })
-
-        response = requests.post(f"{self.api}/blogs/{blogId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.delete(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def like_blog(self, circleId: str = "0", blogId: str = None, commentId: str = None):
+    def remove_blog(self, blogId: int, circleId: int = None):
+        self.delete_blog(blogId, circleId)
+
+    def like_blog(self, circleId: int = "0", blogId: int = None, commentId: str = None):
         if blogId is not None: objId, objType = blogId, 2
         elif commentId is not None: objId, objType = commentId, 3
         else: raise exceptions.SpecifyType
 
         data = json.dumps({
-            "circleId": int(circleId),
-            "objectId": int(objId),
+            "circleId": circleId,
+            "objectId": objId,
             "objectType": objType
         })
 
-        response = requests.post(f"{self.api}/votes", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/votes", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def get_user_blogs(self, userId: str, size: int = 25):
-        response = requests.get(f"{self.api}/blogs?type=user&targetUid={userId}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_user_blogs(self, userId: int, size: int = 25):
+        response = requests.get(f"{self.api}/blogs?type=user&targetUid={userId}&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetBlogs(json.loads(response.text)).GetBlogs
 
-    def follow(self, userId: str):
+    def follow(self, userId: int):
         data = json.dumps({})
-        response = requests.post(f"{self.api}/users/membership/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/users/membership/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def unfollow(self, userId: str):
+    def unfollow(self, userId: int):
         data = json.dumps({})
-        response = requests.delete(f"{self.api}/users/membership/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.delete(f"{self.api}/users/membership/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def block(self, userId: str):
+    def block(self, userId: int):
         data = json.dumps({})
-        response = requests.post(f"{self.api}/users/block/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/users/block/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def unblock(self, userId: str):
+    def unblock(self, userId: int):
         data = json.dumps({})
-        response = requests.delete(f"{self.api}/users/block/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.delete(f"{self.api}/users/block/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def edit_profile(self, nickname: str = None, bio: str = None, background: BinaryIO = None, gender: str = None, school: str = None, address: str = None, showsSchool: bool = None, showsJoinedCircles: bool = None, showsLocation: bool = None, contentRegion: str = None, chatInvitationStatus: str = None, latitude: float = None, longitude: float = None):
+    def edit_profile(self, nickname: str = None, bio: str = None, background: BinaryIO = None, voiceBio: BinaryIO = None, gender: str = None, school: str = None, address: str = None, socialId: str = None, nameCard: bool = None, showsSchool: bool = None, showsJoinedCircles: bool = None, showsLocation: bool = None, nameCardBackground: BinaryIO = None, contentRegion: str = None, chatInvitationStatus: str = None, latitude: float = None, longitude: float = None):
         if gender is not None:
             if gender.lower() == "male": gender = 1
             elif gender.lower() == "female": gender = 2
             elif gender.lower() == "other": gender = 100
-            else: raise exceptions.WrongType
+            else: raise exceptions.WrongType(gender)
 
-        if background is not None: background = self.upload_media(file=background, fileType="image", target=2)
+        if background is not None: background = self.upload_media(file=background, target=2)
+        if voiceBio is not None: voiceBio = self.upload_media(file=voiceBio, target=5)
+        if nameCardBackground is not None: nameCardBackground = self.upload_media(file=nameCardBackground, target=11)
 
         if showsSchool is not None:
             if showsSchool is True: showsSchool = "1"
             elif showsSchool is False: showsSchool = "2"
-            else: raise exceptions.WrongType
+            else: raise exceptions.WrongType(showsSchool)
 
         if showsJoinedCircles is not None:
             if showsJoinedCircles is True: showsJoinedCircles = "1"
             elif showsJoinedCircles is False: showsJoinedCircles = "2"
-            else: raise exceptions.WrongType
+            else: raise exceptions.WrongType(showsJoinedCircles)
 
         if showsLocation is not None:
             if showsLocation is True: showsLocation = "1"
             elif showsLocation is False: showsLocation = "2"
-            else: raise exceptions.WrongType
+            else: raise exceptions.WrongType(showsLocation)
 
         if chatInvitationStatus is not None:
             if chatInvitationStatus.lower() == "everyone" or chatInvitationStatus.lower() == "all": chatInvitationStatus = 1
             elif chatInvitationStatus.lower() == "following": chatInvitationStatus = 2
             elif chatInvitationStatus.lower() == "friends": chatInvitationStatus = 3
             elif chatInvitationStatus.lower() == "off" or chatInvitationStatus.lower() == "nobody": chatInvitationStatus = 4
-            else: raise exceptions.WrongType
+            else: raise exceptions.WrongType(chatInvitationStatus)
 
         if contentRegion is not None:
             if contentRegion.lower() in ["english", "en"]: contentRegion = 1
@@ -412,12 +478,18 @@ class Client:
             elif contentRegion.lower() in ["rest", "other", "all"]: contentRegion = 100
             else: raise exceptions.InvalidRegion(contentRegion)
 
+        if nameCard is not None:
+            if nameCard: nameCard = 1
+            else: nameCard = 2
+
         data = json.dumps({
             "nickname": nickname,
             "bio": bio,
             "background": background,
+            "voiceBio": voiceBio,
             "gender": gender,
             "school": school,
+            "socialId": socialId,
             "location": {
                 "address": {
                     "en": address
@@ -426,6 +498,8 @@ class Client:
                 "longitude": longitude
             },
             "showsSchool": showsSchool,
+            "nameCardEnabled": nameCard,
+            "nameCardBackground": nameCardBackground,
             "showsJoinedCircles": showsJoinedCircles,
             "showsLocation": showsLocation,
             "chatInvitationStatus": chatInvitationStatus,
@@ -433,11 +507,11 @@ class Client:
             "status": 1
         })
 
-        response = requests.post(f"{self.api}/users/profile/{self.userId}/update-profile", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/users/profile/{self.userId}/update-profile", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def edit_chat(self, chatId: str, title: str = None, content: str = None, coHosts: list = None, pinChat: bool = None, doNotDisturb: bool = None, allowMembersInvite: bool = None):
+    def edit_chat(self, chatId: int, title: str = None, content: str = None, coHosts: list = None, pinChat: bool = None, doNotDisturb: bool = None, allowMembersInvite: bool = None):
         data, responses = {}, []
 
         if title is not None: data["title"] = title
@@ -446,54 +520,54 @@ class Client:
         data = json.dumps(data)
 
         if coHosts is not None:
-            data_coHosts = json.dumps({"coHostUids": [int(i) for i in coHosts]})
-            response = requests.post(f"{self.api}/chat/threads/{chatId}/co-host", headers=headers.Headers(data=data_coHosts).headers, data=data_coHosts, proxies=self.proxies)
+            data_coHosts = json.dumps({"coHostUids": [i for i in coHosts]})
+            response = requests.post(f"{self.api}/chat/threads/{chatId}/co-host", headers=headers.Headers(data=data_coHosts).headers, data=data_coHosts, proxies=self.proxies, verify=self.certificatePath)
             if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
             else: responses.append(response.status_code)
 
         if pinChat is not None:
-            if pinChat is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/pin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
-            elif pinChat is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/unpin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
-            else: raise exceptions.WrongType
+            if pinChat is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/pin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+            elif pinChat is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/unpin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+            else: raise exceptions.WrongType(pinChat)
 
             if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
             else: responses.append(response.status_code)
 
         if doNotDisturb is not None:
-            if doNotDisturb is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/alert-option/2", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
-            elif doNotDisturb is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/alert-option/1", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
-            else: raise exceptions.WrongType
+            if doNotDisturb is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/alert-option/2", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+            elif doNotDisturb is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/alert-option/1", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+            else: raise exceptions.WrongType(doNotDisturb)
 
             if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
             else: responses.append(response.status_code)
 
         if allowMembersInvite is not None:
-            if allowMembersInvite is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/members-invite/enable", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
-            elif allowMembersInvite is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/members-invite/disable", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
-            else: raise exceptions.WrongType
+            if allowMembersInvite is True: response = requests.post(f"{self.api}/chat/threads/{chatId}/members-invite/enable", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+            elif allowMembersInvite is False: response = requests.post(f"{self.api}/chat/threads/{chatId}/members-invite/disable", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+            else: raise exceptions.WrongType(allowMembersInvite)
 
             if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
             else: responses.append(response.status_code)
 
-        response = requests.post(f"{self.api}/chat/threads/{chatId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: responses.append(exceptions.CheckException(json.loads(response.text)))
         else: responses.append(response.status_code)
 
         return responses
 
-    def transfer_host(self, chatId: str, userId: str):
+    def transfer_host(self, chatId: int, userId: int):
         data = json.dumps({})
-        response = requests.post(f"{self.api}/chat/threads/{chatId}/host/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/host/{userId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def kick(self, chatId: str, userId: str, blockRejoin: bool = False):
+    def kick(self, chatId: int, userId: int, blockRejoin: bool = False):
         data = json.dumps({})
-        response = requests.delete(f"{self.api}/chat/threads/{chatId}/members/{userId}?block={blockRejoin}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.delete(f"{self.api}/chat/threads/{chatId}/members/{userId}?block={blockRejoin}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def get_chat_threads(self, type: str = "joined", circleId: str = None, start: int = 0, size: int = 25, pageToken: str = None):
+    def get_chat_threads(self, type: str = "joined", circleId: int = None, start: int = 0, size: int = 25, pageToken: str = None):
         if type.lower() == "joined":
             if pageToken is not None: url = f"{self.api}/chat/joined-threads?pageToken={pageToken}&size={size}"
             else: url = f"{self.api}/chat/joined-threads?start={start}&size={size}"
@@ -506,84 +580,165 @@ class Client:
             if pageToken is not None: url = f"{self.api}/chat/threads?type=circle&objectId={circleId}&pageToken={pageToken}&size={size}"
             else: url = f"{self.api}/chat/threads?type=circle&objectId={circleId}&start={start}&size={size}"
 
-        else: raise exceptions.WrongType
+        elif type.lower() == "hot":
+            if pageToken is not None: url = f"{self.api}/chat/hot-threads?pageToken={pageToken}&size={size}"
+            else: url = f"{self.api}/chat/hot-threads?size={size}"
 
-        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        else: raise exceptions.WrongType(type)
+
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetChats(json.loads(response.text)).GetChats
 
-    def get_chat_messages(self, chatId: str, size: int = 25, pageToken: str = None):
-        if pageToken is None: response = requests.get(f"{self.api}/chat/threads/{chatId}/messages?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
-        else: response = requests.get(f"{self.api}/chat/threads/{chatId}/messages?size={size}&pageToken={pageToken}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_chat_messages(self, chatId: int, size: int = 25, pageToken: str = None):
+        if pageToken is None: response = requests.get(f"{self.api}/chat/threads/{chatId}/messages?size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        else: response = requests.get(f"{self.api}/chat/threads/{chatId}/messages?size={size}&pageToken={pageToken}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetChatMessages(json.loads(response.text)).GetChatMessages
 
-    def get_chat_online_users(self, chatId: str, size: int = 25):
-        response = requests.get(f"{self.api}/chat/threads/{chatId}/online-members?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_chat_online_users(self, chatId: int, size: int = 25):
+        response = requests.get(f"{self.api}/chat/threads/{chatId}/online-members?size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
-    def get_chat_users(self, chatId: str, size: int = 25):
-        response = requests.get(f"{self.api}/chat/threads/{chatId}/members?size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_chat_users(self, chatId: int, size: int = 25):
+        response = requests.get(f"{self.api}/chat/threads/{chatId}/members?size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
-    def apply_for_role(self, chatId: str, roleId: str):
+    def apply_for_role(self, chatId: int, roleId: str):
         data = json.dumps({})
-        response = requests.post(f"{self.api}/chat/threads/{chatId}/roles/{roleId}/apply", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/roles/{roleId}/apply", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def join_chat(self, chatId: str):
+    def join_chat(self, chatId: int):
         data = json.dumps({})
-        response = requests.post(f"{self.api}/chat/threads/{chatId}/members", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/members", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def leave_chat(self, chatId: str):
-        response = requests.delete(f"{self.api}/chat/threads/{chatId}/members", headers=headers.Headers().headers, proxies=self.proxies)
+    def leave_chat(self, chatId: int):
+        response = requests.delete(f"{self.api}/chat/threads/{chatId}/members", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def get_circle_info(self, circleId: str):
-        response = requests.get(f"{self.api}/circles/{circleId}", headers=headers.Headers().headers, proxies=self.proxies)
+    def get_circle_info(self, circleId: int):
+        response = requests.get(f"{self.api}/circles/{circleId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Circle(json.loads(response.text)).Circle
 
     def get_circles(self, type: str, size: int = 25):
         if type.lower() == "joined": url = f"{self.api}/circles?type=joined&size={size}"
         elif type.lower() == "latest": url = f"{self.api}/circles?type=latest&size={size}"
-        else: raise exceptions.WrongType()
+        else: raise exceptions.WrongType(type)
 
-        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.GetUsers(json.loads(response.text)).GetUsers
 
-    def get_circle_users(self, circleId: str, type: str = "normal", start: int = 0, size: int = 25, pageToken: str = None):
+    def get_circle_users(self, circleId: int, type: str = "normal", start: int = 0, size: int = 25, pageToken: str = None):
+        # type can be "normal" or "blocked"
+
         if pageToken is not None: url = f"{self.api}/circles/{circleId}/members?type={type}&pageToken={pageToken}&size={size}"
         else: url = f"{self.api}/circles/{circleId}/members?type={type}&start={start}&size={size}"
 
-        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(url, headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Circle(json.loads(response.text)).Circle
 
-    def join_circle(self, circleId: str):
-        data = json.dumps({})
-        response = requests.post(f"{self.api}/circles/{circleId}/members", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+    def create_circle(self, title: str, tagline: str, icon: BinaryIO, description: str = None, tagList: list = None, language: str = "en", background: BinaryIO = None):
+        if icon is not None:
+            if type(icon) == BinaryIO: icon = self.upload_media(file=icon, target=1)
+            else: raise exceptions.InvalidFile
+
+        if background is not None:
+            if type(background) == BinaryIO: background = self.upload_media(file=background, target=1)
+            else: raise exceptions.InvalidFile
+
+        else:
+            background = choice(self.get_default_backgrounds())
+
+        data = json.dumps({
+            "background": background,
+            "circleId": 0,
+            "icon": icon,
+            "language": language,
+            "name": title,
+            "status": 1,
+            "tagStrList": tagList,
+            "tagline": tagline,
+            "description": description,
+            "uid": 0
+        })
+
+        response = requests.post(f"{self.api}/circles", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def leave_circle(self, circleId: str):
-        response = requests.delete(f"{self.api}/circles/{circleId}/members", headers=headers.Headers().headers, proxies=self.proxies)
+    def edit_circle(self, circleId: int, title: str, tagline: str, icon: BinaryIO, description: str = None, tagList: list = None, language: str = "en", background: BinaryIO = None):
+        if icon is not None:
+            if type(icon) == BinaryIO: icon = self.upload_media(file=icon, target=1)
+            else: raise exceptions.InvalidFile
+
+        if background is not None:
+            if type(background) == BinaryIO: background = self.upload_media(file=background, target=1)
+            else: raise exceptions.InvalidFile
+
+        else:
+            background = choice(self.get_default_backgrounds())
+
+        data = json.dumps({
+            "background": background,
+            "circleId": 0,
+            "icon": icon,
+            "language": language,
+            "name": title,
+            "status": 1,
+            "tagStrList": tagList,
+            "tagline": tagline,
+            "description": description,
+            "uid": 0
+        })
+
+        response = requests.post(f"{self.api}/circles/{circleId}", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def delete_circle(self, circleId: int):
+        response = requests.delete(f"{self.api}/circles/{circleId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def join_circle(self, circleId: int):
+        data = json.dumps({})
+        response = requests.post(f"{self.api}/circles/{circleId}/members", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def leave_circle(self, circleId: int):
+        response = requests.delete(f"{self.api}/circles/{circleId}/members", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def pin_blog(self, blogId: int, circleId: int):
+        data = json.dumps({})
+        response = requests.post(f"{self.api}/circles/{circleId}/blogs/{blogId}/pin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def unpin_blog(self, blogId: int, circleId: int):
+        data = json.dumps({})
+        response = requests.post(f"{self.api}/circles/{circleId}/blogs/{blogId}/unpin", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
     def get_tag_info(self, tagId: str):
-        response = requests.get(f"{self.api}/tags?tagId={tagId}", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.get(f"{self.api}/tags?tagId={tagId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Tag(json.loads(response.text)).Tag
 
-    def comment(self, message: str, blogId: str = None, replyTo: str = None):
+    def comment(self, message: str, blogId: int = None, replyTo: str = None):
         if blogId is not None: targetId = blogId
         else: raise exceptions.SpecifyType
 
@@ -605,20 +760,20 @@ class Client:
             "uid": 0
         })
 
-        response = requests.post(f"{self.api}/comments", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/comments", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
     def delete_comment(self, commentId: str):
-        response = requests.delete(f"{self.api}/comments/{commentId}", headers=headers.Headers().headers, proxies=self.proxies)
+        response = requests.delete(f"{self.api}/comments/{commentId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def share(self, url: str = None, userId: str = None, chatId: str = None, circleId: str = None):
+    def share(self, url: str = None, userId: int = None, chatId: int = None, circleId: int = None):
         if url is not None:
             if "www.projz.com" in url:
                 data = json.dumps({"link": url})
-                response = requests.post(f"{self.api}/links/path", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+                response = requests.post(f"{self.api}/links/path", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
 
             else: raise exceptions.InvalidUrl(url)
 
@@ -634,42 +789,64 @@ class Client:
                 "path": objPath
             })
 
-            response = requests.post(f"{self.api}/links/share", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+            response = requests.post(f"{self.api}/links/share", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
 
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return objects.Share(json.loads(response.text)).Share
 
-    # TODO : Fix this... Thanks Z for making this so complicated
-    def upload_media(self, file: BinaryIO, fileType: str, target: int):
+    def upload_media(self, file: BinaryIO, target: int):
         data = file.read()
-        file_head = file.read(16)
+        boundary = UUID(hexlify(urandom(16)).decode('ascii'))
 
-        if "png" in str(file_head).lower(): fileExt = "png"
-        elif "jpg" or "jfif" in str(file_head).lower(): fileExt = "jpg"
-        elif "jpeg" in str(file_head).lower(): fileExt = "jpeg"
-        elif "gif" in str(file_head).lower(): fileExt = "gif"
-        else: raise exceptions.InvalidFileExtension(file_head)
+        try:
+            duration = round(TinyTag.get(file.name).duration * 1000)
+            fileExt = "aac"; fileExt2 = "aac"; fileType = "audio"; target = 5
+        except TinyTagException:
+            duration = 0
+            if "png" in str(data).lower(): fileExt = "png"; fileExt2 = "png"; fileType = "image"
+            elif "jpg" or "jfif" in str(data).lower(): fileExt = "jpg"; fileExt2 = "jpeg"; fileType = "image"
+            elif "jpeg" in str(data).lower(): fileExt = "jpeg"; fileExt2 = "jpeg"; fileType = "image"
+            elif "gif" in str(data).lower(): fileExt = "gif"; fileExt2 = "gif"; fileType = "image"
+            else: raise exceptions.InvalidFileExtension(data)
+        except Exception as uploadError:
+            raise Exception(uploadError)
 
-        response = requests.post(f"{self.api}/media/upload?target={target}", headers=headers.Headers(type=f"{fileType}/{fileExt}", data=data).headers, data=data, proxies=self.proxies)
+        head = headers.Headers(type=f"multipart/form-data; boundary={boundary}").headers
+        files = {'media': (f"projzpy_media_{fileExt}", data, f"{fileType}/{fileExt2}", {'Content-Type': f"{fileType}/{fileExt2}", "Content-Length": len(data)})}
+        session = requests.Session()
+        request = requests.Request("POST", f"https://api.projz.com/v1/media/upload?target={target}&duration={duration}", files=files, headers=head)
+        prepped = request.prepare()
+        reqbody = str(prepped.body)
+        reqbody.replace(reqbody[:36][4:], str(UUID(reqbody[:36][4:])))
+        prepped.headers["Content-Type"] = f"multipart/form-data; boundary={reqbody[:36][4:]}"
+        response = session.send(prepped, proxies=self.proxies, verify=self.certificatePath)
+
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return json.loads(response.text)
 
-    def send_message(self, message: str, chatId: str, messageType: int = 1, media: dict = None, replyMessageId: str = None):
+    def get_default_backgrounds(self):
+        response = requests.get(f"{self.api}/media/default?type=5", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return json.loads(response.text)
+
+    def send_message(self, message: str, chatId: int, messageType: int = 1, file: BinaryIO = None, replyMessageId: int = None):
         if self.authenticated is False: raise exceptions.NotLoggedIn
+
+        if file is not None: file = self.upload_media(file=file, target=8)
 
         request = self.socket.send(json.dumps({
                 "t": 1,
-                "threadId": int(chatId),
+                "threadId": chatId,
                 "msg": {
                     "type": messageType,
                     "status": 1,
-                    "threadId": int(chatId),
+                    "threadId": chatId,
                     "uid": self.userId,
                     "extensions": {
                         "friendshipLevel": 1,
                         "replyMessageId": replyMessageId
                     },
-                    "media": media,
+                    "media": file,
                     "refId": int(timestamp() * 1000),
                     "content": message,
                     "messageId": 0
@@ -677,25 +854,25 @@ class Client:
 
         return request
 
-    def send_chat_active(self, chatId: str):
+    def send_chat_active(self, chatId: int):
         if self.authenticated is False: raise exceptions.NotLoggedIn
-        return self.socket.send(json.dumps({"t": 6, "threadId": int(chatId)}))
+        return self.socket.send(json.dumps({"t": 6, "threadId": chatId}))
 
-    def send_chat_unactive(self, chatId: str):
+    def send_chat_unactive(self, chatId: int):
         if self.authenticated is False: raise exceptions.NotLoggedIn
-        return self.socket.send(json.dumps({"t": 7, "threadId": int(chatId)}))
+        return self.socket.send(json.dumps({"t": 7, "threadId": chatId}))
 
-    def mark_message_as_read(self, chatId: str, messageId: str):
+    def mark_message_as_read(self, chatId: int, messageId: int):
         if self.authenticated is False: raise exceptions.NotLoggedIn
-        return self.socket.send(json.dumps({"t": 3, "threadId": int(chatId), "clientAck": {"threadId": int(chatId), "messageId": int(messageId), "markAsRead": True}}))
+        return self.socket.send(json.dumps({"t": 3, "threadId": chatId, "clientAck": {"threadId": chatId, "messageId": messageId, "markAsRead": True}}))
 
-    def mark_chat_as_read(self, chatId: str):
+    def mark_chat_as_read(self, chatId: int):
         data = json.dumps({})
-        response = requests.post(f"{self.api}/chat/threads/{chatId}/mark-as-read", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/mark-as-read", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def send_control_message(self, message: str, chatId: str, messageType: int, messageId: str = None, userList: list = None, extensions: dict = None):
+    def send_control_message(self, message: str, chatId: int, messageType: int, messageId: int = None, userList: list = None, extensions: dict = None):
         if userList is None: userList = []
 
         if messageId is None: messageId = 0
@@ -720,46 +897,46 @@ class Client:
             "userList": userList
         })
 
-        response = requests.post(f"{self.api}/chat/threads/{chatId}/control-messages", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/control-messages", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def delete_message(self, messageId: str, chatId: str):
-        response = requests.delete(f"{self.api}/chat/threads/{chatId}/messages/{messageId}", headers=headers.Headers().headers, proxies=self.proxies)
+    def delete_message(self, messageId: int, chatId: int):
+        response = requests.delete(f"{self.api}/chat/threads/{chatId}/messages/{messageId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
     def search(self, content: str, type: str, size: int = 25):
         if type == "chat":
-            response = requests.get(f"{self.api}/search/chat?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            response = requests.get(f"{self.api}/search/chat?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
             if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
             else: return objects.ChatList(json.loads(response.text)["list"]).ChatList
 
         elif type == "blogs":
-            response = requests.get(f"{self.api}/search/blogs?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            response = requests.get(f"{self.api}/search/blogs?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
             if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
             else: return objects.BlogList(json.loads(response.text)["list"]).BlogList
 
         elif type == "circles":
-            response = requests.get(f"{self.api}/search/circles?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            response = requests.get(f"{self.api}/search/circles?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
             if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
             else: return objects.CircleList(json.loads(response.text)["list"]).CircleList
 
         elif type == "users":
-            response = requests.get(f"{self.api}/search/users?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies)
+            response = requests.get(f"{self.api}/search/users?word={content}&size={size}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
             if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
             else: return objects.UserProfileList(json.loads(response.text)["list"]).UserProfileList
 
-        else: raise exceptions.WrongType
+        else: raise exceptions.WrongType(type)
 
-    def start_chat(self, message: str, userId: [str, list], type: str, title: str = None, tagStrList: list = None):
+    def start_chat(self, message: str, userId: [int, list], type: str, title: str = None, tagStrList: list = None):
         if type.lower() == "private": type = 2
         elif type.lower() == "global": type = 0
-        else: raise exceptions.WrongType
+        else: raise exceptions.WrongType(type)
 
-        if isinstance(userId, str): userId = [userId]
+        if isinstance(userId, int): userId = [userId]
         elif isinstance(userId, list): userId = userId
-        else: raise exceptions.WrongType
+        else: raise exceptions.WrongType(self.type_(userId))
 
         data = json.dumps({
             "createdTime": 0,
@@ -775,32 +952,75 @@ class Client:
             "uid": 0
         })
 
-        response = requests.post(f"{self.api}/chat/threads", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def start_roleplay(self, chatId: str, mode: str, roleIds: list):
+    def start_roleplay(self, chatId: int, mode: str, roleIds: list):
         if mode.lower() == "text": mode = 1
         elif mode.lower() == "voice": mode = 2
-        else: raise exceptions.WrongType
+        else: raise exceptions.WrongType(mode)
 
         data = json.dumps({
             "mode": mode,
             "roleIds": roleIds
         })
 
-        response = requests.post(f"{self.api}/chat/threads/{chatId}/start-role-play", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/start-role-play", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def end_roleplay(self, chatId: str):
+    def end_roleplay(self, chatId: int):
         data = json.dumps({})
-        response = requests.post(f"{self.api}/chat/threads/{chatId}/end-role-play", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies)
+        response = requests.post(f"{self.api}/chat/threads/{chatId}/end-role-play", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 
-    def delete_chat(self, chatId: str):
-        response = requests.delete(f"{self.api}/chat/threads/{chatId}", headers=headers.Headers().headers, proxies=self.proxies)
+    def delete_chat(self, chatId: int):
+        response = requests.delete(f"{self.api}/chat/threads/{chatId}", headers=headers.Headers().headers, proxies=self.proxies, verify=self.certificatePath)
+        if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
+        else: return response.status_code
+
+    def flag(self, message: str, target: str, flagType: str, objectId: int, chatId: int = None):
+        # Flag Types
+        # 0 - UNKNOWN // UNKNOWN
+        # 1 - Suicide or Self-Harm // SUICIDE
+        # 2 - Illegal Activities // ILLEGAL
+        # 3 - Violent or Graphic Content // VIOLENT
+        # 4 - Pornography and Nudity // PORN
+        # 5 - Hate Speech // HATE
+        # 6 - Bullying or Harassment // BULLYING
+        # 7 - Spam or Trolling // SPAM
+        # 100 - Others // OTHERS
+
+        extensions = None
+        if target.lower() == "chat": objectType = 1
+        elif target.lower() == "blog": objectType = 2
+        elif target.lower() == "comment": objectType = 3
+        elif target.lower() == "user": objectType = 4
+        elif target.lower() == "circle": objectType = 5
+        elif target.lower() == "message": objectType = 7; extensions = {"threadId": chatId}
+        else: raise exceptions.WrongType(target)
+
+        if flagType.lower() == "suicide": flagType = 1
+        elif flagType.lower() == "illegal": flagType = 2
+        elif flagType.lower() == "violent": flagType = 3
+        elif flagType.lower() == "porn": flagType = 4
+        elif flagType.lower() == "hate": flagType = 5
+        elif flagType.lower() == "bullying": flagType = 6
+        elif flagType.lower() == "spam": flagType = 7
+        elif flagType.lower() == "other": flagType = 100
+        else: raise exceptions.WrongType(flagType)
+
+        data = json.dumps({
+            "extensions": extensions,
+            "flagType": flagType,
+            "message": message,
+            "objectId": objectId,
+            "objectType": objectType
+        })
+
+        response = requests.post(f"{self.api}/flags", headers=headers.Headers(data=data).headers, data=data, proxies=self.proxies, verify=self.certificatePath)
         if response.status_code != 200: return exceptions.CheckException(json.loads(response.text))
         else: return response.status_code
 

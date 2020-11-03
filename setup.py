@@ -5,7 +5,7 @@ with open("README.md", "r") as stream:
 
 setup(
     name = 'ProjZ.py',
-    version = '0.0.5',
+    version = '0.0.6',
     url = 'https://github.com/Slimakoi/ProjZ.py',
     download_url = 'https://github.com/Slimakoi/ProjZ.py/tarball/master',
     license = 'MIT',
@@ -36,7 +36,8 @@ setup(
         'setuptools',
         'requests',
         'six',
-        'websocket-client'
+        'websocket-client',
+        'tinytag'
     ],
     setup_requires = [
         'wheel'

@@ -34,10 +34,7 @@ class SocketHandler:
         return self.client.handle_socket_message(json.loads(data))
 
     def send(self, data):
-        sock = websocket.create_connection(url=self.socket_url, header = self.headers)
-        data = sock.send(data)
-        sock.close()
-        return data
+        return self.socket.send(data)
 
     def start(self):
         self.headers = {
@@ -75,7 +72,8 @@ class SocketHandler:
     def close(self):
         self.reconnect = False
         self.active = False
-        self.socket.close()
+        try: self.socket.close()
+        except websocket.WebSocketConnectionClosedException: return
 
 class Callbacks:
     def __init__(self, client):

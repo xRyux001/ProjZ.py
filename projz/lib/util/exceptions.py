@@ -14,6 +14,14 @@ class InvalidRequest(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class BAD_SIGNATURE(Exception):
+    """
+    - **API Code** : 1006
+    - **API Message** : ``Unknown``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class BLOG_NOT_FOUND(Exception):
     """
     - **API Code** : 1202
@@ -182,6 +190,14 @@ class ROLE_NOT_FOUND(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class FileTooLarge(Exception):
+    """
+    - **API Code** : 7006
+    - **API Message** : This audio (``X`` MB) has exceeded the upload limit (2 MB).
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class BadRequest(Exception):
     """
     - **API Code** : 9001
@@ -232,6 +248,13 @@ class InvalidRegion(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class InvalidFile(Exception):
+    """
+    Raised when you use a file that the type isn't ``BinaryIO``.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class LibraryUpdateAvailable(Exception):
     """
     Raised when a new library update is available.
@@ -245,6 +268,7 @@ def CheckException(data):
 
     if api_code == 1000: raise InvalidHeader(data)
     elif api_code == 1001: raise InvalidRequest(data)
+    elif api_code == 1006: raise BAD_SIGNATURE(data)
     elif api_code == 1202: raise BLOG_NOT_FOUND(data)
     elif api_code == 2002: raise SessionTimeout(data)
     elif api_code == 2004: raise InvalidSession(data)
@@ -266,5 +290,6 @@ def CheckException(data):
     elif api_code == 5002: raise TagLimitReached(data)
     elif api_code == 6001: raise ChatDoesntExistOrNotFound(data)
     elif api_code == 6003: raise ROLE_NOT_FOUND(data)
+    elif api_code == 7006: raise FileTooLarge(data)
     elif api_code == 9001: raise BadRequest(data)
     else: raise Exception(data)
