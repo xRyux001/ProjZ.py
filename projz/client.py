@@ -12,6 +12,7 @@ from binascii import hexlify
 from io import BufferedReader
 from time import time as timestamp
 from tinytag import TinyTag, TinyTagException
+from ffmpeg import probe
 
 device = device.DeviceGenerator()
 
@@ -798,18 +799,18 @@ class Client:
         data = file.read()
         boundary = UUID(hexlify(urandom(16)).decode('ascii'))
 
-        try:
-            duration = round(TinyTag.get(file.name).duration * 1000)
+        prob = probe(file.name)["format"]
+
+        if prob["format_name"] == "aac":
+            duration = round(float(prob["duration"]) * 1000)
             fileExt = "aac"; fileExt2 = "aac"; fileType = "audio"; target = 5
-        except TinyTagException:
+        else:
             duration = 0
             if "png" in str(data).lower(): fileExt = "png"; fileExt2 = "png"; fileType = "image"
             elif "jpg" or "jfif" in str(data).lower(): fileExt = "jpg"; fileExt2 = "jpeg"; fileType = "image"
             elif "jpeg" in str(data).lower(): fileExt = "jpeg"; fileExt2 = "jpeg"; fileType = "image"
             elif "gif" in str(data).lower(): fileExt = "gif"; fileExt2 = "gif"; fileType = "image"
             else: raise exceptions.InvalidFileExtension(data)
-        except Exception as uploadError:
-            raise Exception(uploadError)
 
         head = headers.Headers(type=f"multipart/form-data; boundary={boundary}").headers
         files = {'media': (f"projzpy_media_{fileExt}", data, f"{fileType}/{fileExt2}", {'Content-Type': f"{fileType}/{fileExt2}", "Content-Length": len(data)})}
