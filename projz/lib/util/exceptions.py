@@ -46,6 +46,14 @@ class InvalidSession(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
+class InvalidSecurityCode(Exception):
+    """
+    - **API Code** : 2005
+    - **API Message** : The security code is incorrect. Please try again.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
 class PasswordTooShort(Exception):
     """
     - **API Code** : 2006
@@ -74,6 +82,14 @@ class InvalidPassword(Exception):
     """
     - **API Code** : 2010
     - **API Message** : Password is incorrect. Forgot your password? Trying resetting it.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class CannotFollowDisabled(Exception):
+    """
+    - **API Code** : 2011
+    - **API Message** : ``Unknown``
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -134,10 +150,18 @@ class EMAIL_ALREADY_REGISTERED(Exception):
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
 
-class InvalidInvitationCode(Exception):
+class TooManyRequests(Exception):
     """
-    - **API Code** : 3301
-    - **API Message** : The invitation code does not exist.
+    - **API Code** : 2043
+    - **API Message** : Too many requests. Please wait.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class AccountCreationLimit(Exception):
+    """
+    - **API Code** : 3001
+    - **API Message** : A maximum of 3 accounts can be created from this device. If you forget your password, please reset it.
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -146,6 +170,30 @@ class InvalidNickname(Exception):
     """
     - **API Code** : 3005
     - **API Message** : This nickname is invalid, please try another one.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class CannotFollowSelf(Exception):
+    """
+    - **API Code** : 3103
+    - **API Message** : ``Unknown``
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class InvalidInvitationCode(Exception):
+    """
+    - **API Code** : 3301
+    - **API Message** : The invitation code does not exist.
+    """
+    def __init__(*args, **kwargs):
+        Exception.__init__(*args, **kwargs)
+
+class InvitationCodeAlreadyUsed(Exception):
+    """
+    - **API Code** : 3302
+    - **API Message** : The invitation code has been used by another user.
     """
     def __init__(*args, **kwargs):
         Exception.__init__(*args, **kwargs)
@@ -272,10 +320,12 @@ def CheckException(data):
     elif api_code == 1202: raise BLOG_NOT_FOUND(data)
     elif api_code == 2002: raise SessionTimeout(data)
     elif api_code == 2004: raise InvalidSession(data)
+    elif api_code == 2005: raise InvalidSecurityCode(data)
     elif api_code == 2006: raise PasswordTooShort(data)
     elif api_code == 2007: raise InvalidDeviceId(data)
     elif api_code == 2009: raise EmailNotRegistered(data)
     elif api_code == 2010: raise InvalidPassword(data)
+    elif api_code == 2011: raise CannotFollowDisabled(data)
     elif api_code == 2014: raise PHONE_NUMBER_ALREADY_REGISTERED(data)
     elif api_code == 2016: raise PHONE_NUMBER_NOT_EXIST(data)
     elif api_code == 2022: raise InvalidEmail(data)
@@ -283,8 +333,12 @@ def CheckException(data):
     elif api_code == 2028: raise ZIDAlreadyChanged(data)
     elif api_code == 2034: raise USER_NOT_FOUND(data)
     elif api_code == 2038: raise EMAIL_ALREADY_REGISTERED(data)
+    elif api_code == 2043: raise TooManyRequests(data)
+    elif api_code == 3001: raise AccountCreationLimit(data)
     elif api_code == 3005: raise InvalidNickname(data)
+    elif api_code == 3103: raise CannotFollowSelf(data)
     elif api_code == 3301: raise InvalidInvitationCode(data)
+    elif api_code == 3302: raise InvitationCodeAlreadyUsed(data)
     elif api_code == 4008: raise CIRCLE_NOT_FOUND(data)
     elif api_code == 5001: raise InvalidTag(data)
     elif api_code == 5002: raise TagLimitReached(data)

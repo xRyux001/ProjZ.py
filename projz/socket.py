@@ -1,7 +1,8 @@
-import json
 import threading
 import websocket
 import contextlib
+import ujson as json
+
 from time import time as timestamp
 from .lib.util import objects
 
@@ -93,6 +94,8 @@ class Callbacks:
             "14": self.on_user_remove,
             "15": self.on_cohost_remove,
             "16": self.on_cohost_add,
+            "17": self.on_host_delete_message,
+            "18": self.on_cohost_delete_message,
             "20": self.on_role_play_invite,
             "21": self.on_free_talk_start,
             "22": self.on_free_talk_end,
@@ -162,6 +165,8 @@ class Callbacks:
     def on_user_remove(self, data): self.call("on_user_remove", objects.Message(data["msg"]).Message)  # TODO : Get actual response
     def on_cohost_remove(self, data): self.call("on_cohost_remove", objects.Message(data["msg"]).Message)  # TODO : Get actual response
     def on_cohost_add(self, data): self.call("on_cohost_add", objects.Message(data["msg"]).Message)  # TODO : Get actual response
+    def on_host_delete_message(self, data): self.call("on_host_delete_message", objects.Message(data["msg"]).Message)  # TODO : Get actual response
+    def on_cohost_delete_message(self, data): self.call("on_cohost_delete_message", objects.Message(data["msg"]).Message)  # TODO : Get actual response
     def on_role_play_invite(self, data): self.call("on_role_play_invite", objects.Message(data["msg"]).Message)  # TODO : Get actual response
     def on_free_talk_start(self, data): self.call("on_free_talk_start", objects.Message(data["msg"]).Message)
     def on_free_talk_end(self, data): self.call("on_free_talk_end", objects.Message(data["msg"]).Message)

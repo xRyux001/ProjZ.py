@@ -5,7 +5,7 @@ with open("README.md", "r") as stream:
 
 setup(
     name = 'ProjZ.py',
-    version = '0.0.6.1',
+    version = '0.0.7',
     url = 'https://github.com/Slimakoi/ProjZ.py',
     download_url = 'https://github.com/Slimakoi/ProjZ.py/tarball/master',
     license = 'MIT',
@@ -37,7 +37,9 @@ setup(
         'requests',
         'six',
         'websocket-client',
-        'ffmpeg'
+        'ffmpeg',
+        'ffmpeg-python',
+        'ujson'
     ],
     setup_requires = [
         'wheel'

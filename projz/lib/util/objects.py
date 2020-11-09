@@ -2,8 +2,8 @@ class UserProfile:
     def __init__(self, data):
         self.json = data
 
-        try: self.tagList = TagList(data["tagList"]).TagList
-        except (KeyError, TypeError): self.tagList = None
+        try: self.tagList: TagList = TagList(data["tagList"]).TagList
+        except (KeyError, TypeError): self.tagList: TagList = TagList([])
 
         self.userId = None
         self.status = None
@@ -46,6 +46,11 @@ class UserProfile:
         self.voiceBio = None
         self.voiceBioUrl = None
         self.chatJoinedTime = None
+        self.extensions = None
+        self.openDaysInRow = None
+        self.lastOpenDate = None
+        self.circleJoinedTime = None
+        self.circleRole = None
 
     @property
     def UserProfile(self):
@@ -131,6 +136,16 @@ class UserProfile:
         except (KeyError, TypeError): pass
         try: self.chatJoinedTime = self.json["chatJoinedTime"]
         except (KeyError, TypeError): pass
+        try: self.extensions = self.json["extensions"]
+        except (KeyError, TypeError): pass
+        try: self.openDaysInRow = self.json["extensions"]["openDaysInRow"]
+        except (KeyError, TypeError): pass
+        try: self.lastOpenDate = self.json["extensions"]["lastOpenDate"]
+        except (KeyError, TypeError): pass
+        try: self.circleJoinedTime = self.json["circleJoinedTime"]
+        except (KeyError, TypeError): pass
+        try: self.circleRole = self.json["circleRole"]
+        except (KeyError, TypeError): pass
 
         return self
 
@@ -185,6 +200,11 @@ class UserProfileList:
         self.voiceBio = []
         self.voiceBioUrl = []
         self.chatJoinedTime = []
+        self.extensions = []
+        self.openDaysInRow = []
+        self.lastOpenDate = []
+        self.circleJoinedTime = []
+        self.circleRole = []
 
     @property
     def UserProfileList(self):
@@ -273,6 +293,16 @@ class UserProfileList:
             except (KeyError, TypeError): self.voiceBioUrl.append(None)
             try: self.chatJoinedTime.append(obj["chatJoinedTime"])
             except (KeyError, TypeError): self.chatJoinedTime.append(None)
+            try: self.extensions.append(obj["extensions"])
+            except (KeyError, TypeError): self.extensions.append(None)
+            try: self.openDaysInRow.append(obj["extensions"]["openDaysInRow"])
+            except (KeyError, TypeError): self.openDaysInRow.append(None)
+            try: self.lastOpenDate.append(obj["extensions"]["lastOpenDate"])
+            except (KeyError, TypeError): self.lastOpenDate.append(None)
+            try: self.circleJoinedTime.append(obj["circleJoinedTime"])
+            except (KeyError, TypeError): self.circleJoinedTime.append(None)
+            try: self.circleRole.append(obj["circleRole"])
+            except (KeyError, TypeError): self.circleRole.append(None)
 
         return self
 
@@ -280,8 +310,8 @@ class GetBlogs:
     def __init__(self, data):
         self.json = data
 
-        try: self.blog = BlogList(data["list"]).BlogList
-        except (KeyError, TypeError): self.blog = None
+        try: self.blog: BlogList = BlogList(data["list"]).BlogList
+        except (KeyError, TypeError): self.blog: BlogList = BlogList([])
 
         self.nextPageToken = None
         self.totalPages = None
@@ -299,8 +329,8 @@ class GetChats:
     def __init__(self, data):
         self.json = data
 
-        try: self.chat = ChatList(data["list"]).ChatList
-        except (KeyError, TypeError): self.chat = None
+        try: self.chat: ChatList = ChatList(data["list"]).ChatList
+        except (KeyError, TypeError): self.chat: ChatList = ChatList([])
 
         self.nextPageToken = None
         self.totalPages = None
@@ -335,8 +365,8 @@ class GetChatMessages:
     def __init__(self, data):
         self.json = data
 
-        try: self.message = MessageList(data["list"]).MessageList
-        except (KeyError, TypeError): self.message = None
+        try: self.message: MessageList = MessageList(data["list"]).MessageList
+        except (KeyError, TypeError): self.message: MessageList = MessageList([])
 
         self.nextPageToken = None
         self.totalPages = None
@@ -357,8 +387,8 @@ class GetUsers:
     def __init__(self, data):
         self.json = data
 
-        try: self.profile = UserProfileList(data["list"]).UserProfileList
-        except (KeyError, TypeError): self.profile = None
+        try: self.profile: UserProfileList = UserProfileList(data["list"]).UserProfileList
+        except (KeyError, TypeError): self.profile: UserProfileList = UserProfileList([])
 
         self.nextPageToken = None
         self.totalPages = None
@@ -379,12 +409,12 @@ class Blog:
     def __init__(self, data):
         self.json = data
 
-        try: self.author = UserProfile(data["author"]).UserProfile
-        except (KeyError, TypeError): self.author = None
-        try: self.tagList = TagList(data["tagList"]).TagList
-        except (KeyError, TypeError): self.tagList = None
-        try: self.circleList = CircleList(data["circleList"]).CircleList
-        except (KeyError, TypeError): self.circleList = None
+        try: self.author: UserProfile = UserProfile(data["author"]).UserProfile
+        except (KeyError, TypeError): self.author: UserProfile = UserProfile([])
+        try: self.tagList: TagList = TagList(data["tagList"]).TagList
+        except (KeyError, TypeError): self.tagList: TagList = TagList([])
+        try: self.circleList: CircleList = CircleList(data["circleList"]).CircleList
+        except (KeyError, TypeError): self.circleList: CircleList = CircleList([])
 
         self.blogId = None
         self.circleIdList = None
@@ -465,7 +495,7 @@ class BlogList:
             try: _circleList.append(CircleList(obj_["circleList"]).CircleList)
             except (KeyError, TypeError): _circleList.append(None)
 
-        self.author = UserProfileList(_author).UserProfileList
+        self.author: UserProfileList = UserProfileList(_author).UserProfileList
         self.tagList = _tagList
         self.circleList = _circleList
         self.blogId = []
@@ -539,14 +569,14 @@ class Chat:
     def __init__(self, data):
         self.json = data
 
-        try: self.host = UserProfile(data["host"]).UserProfile
-        except (KeyError, TypeError): self.host = None
-        try: self.membersSummary = UserProfileList(data["membersSummary"]).UserProfileList
-        except (KeyError, TypeError): self.membersSummary = None
-        try: self.latestMessage = Message(data["latestMessage"]).Message
-        except (KeyError, TypeError): self.latestMessage = None
-        try: self.circleList = CircleList(data["circleList"]).CircleList
-        except (KeyError, TypeError): self.circleList = None
+        try: self.host: UserProfile = UserProfile(data["host"]).UserProfile
+        except (KeyError, TypeError): self.host: UserProfile = UserProfile([])
+        try: self.membersSummary: UserProfileList = UserProfileList(data["membersSummary"]).UserProfileList
+        except (KeyError, TypeError): self.membersSummary: UserProfileList = UserProfileList([])
+        try: self.latestMessage: Message = Message(data["latestMessage"]).Message
+        except (KeyError, TypeError): self.latestMessage: Message = Message([])
+        try: self.circleList: CircleList = CircleList(data["circleList"]).CircleList
+        except (KeyError, TypeError): self.circleList: CircleList = CircleList([])
 
         self.chatId = None
         self.status = None
@@ -577,6 +607,7 @@ class Chat:
         self.rolesCount = None
         self.inviteMessageContent = None
         self.circleIdList = None
+        self.disableMembersInvite = None
 
     @property
     def Chat(self):
@@ -618,6 +649,8 @@ class Chat:
         except (KeyError, TypeError): pass
         try: self.rolePlayMode = self.json["extensions"]["rolePlayMode"]
         except (KeyError, TypeError): pass
+        try: self.disableMembersInvite = self.json["extensions"]["disableMembersInvite"]
+        except (KeyError, TypeError): pass
         try: self.blacklist = self.json["extensions"]["blacklist"]
         except (KeyError, TypeError): pass
         try: self.alertOption = self.json["currentMemberInfo"]["alertOption"]
@@ -656,9 +689,9 @@ class ChatList:
             try: _circleList.append(CircleList(obj_["circleList"]).CircleList)
             except (KeyError, TypeError): _circleList.append(None)
 
-        self.host = UserProfileList(_host).UserProfileList
+        self.host: UserProfileList = UserProfileList(_host).UserProfileList
         self.membersSummary = _membersSummary
-        self.latestMessage = MessageList(_latestMessage).MessageList
+        self.latestMessage: MessageList = MessageList(_latestMessage).MessageList
         self.circleList = _circleList
         self.chatId = []
         self.status = []
@@ -689,6 +722,7 @@ class ChatList:
         self.rolesCount = []
         self.inviteMessageContent = []
         self.circleIdList = []
+        self.disableMembersInvite = []
 
     @property
     def ChatList(self):
@@ -731,6 +765,8 @@ class ChatList:
             except (KeyError, TypeError): self.activityType.append(None)
             try: self.rolePlayMode.append(obj["extensions"]["rolePlayMode"])
             except (KeyError, TypeError): self.rolePlayMode.append(None)
+            try: self.disableMembersInvite.append(obj["extensions"]["disableMembersInvite"])
+            except (KeyError, TypeError): self.disableMembersInvite.append(None)
             try: self.blacklist.append(obj["extensions"]["blacklist"])
             except (KeyError, TypeError): self.blacklist.append(None)
             try: self.alertOption.append(obj["currentMemberInfo"]["alertOption"])
@@ -758,16 +794,16 @@ class Message:
     def __init__(self, data):
         self.json = data
 
-        try: self.author = UserProfile(data["author"]).UserProfile
-        except (KeyError, TypeError): self.author = None
-        try: self.role = Role(data["role"]).Role
-        except (KeyError, TypeError): self.role = None
-        try: self.userList = UserProfileList(data["userList"]).UserProfileList
-        except (KeyError, TypeError): self.userList = None
-        try: self.roleList = RoleList(data["roleList"]).RoleList
-        except (KeyError, TypeError): self.roleList = None
-        try: self.replyMessage = Message(data["replyMessage"]).Message
-        except (KeyError, TypeError): self.replyMessage = None
+        try: self.author: UserProfile = UserProfile(data["author"]).UserProfile
+        except (KeyError, TypeError): self.author: UserProfile = UserProfile([])
+        try: self.role: Role = Role(data["role"]).Role
+        except (KeyError, TypeError): self.role: Role = Role([])
+        try: self.userList: UserProfileList = UserProfileList(data["userList"]).UserProfileList
+        except (KeyError, TypeError): self.userList: UserProfileList = UserProfileList([])
+        try: self.roleList: RoleList = RoleList(data["roleList"]).RoleList
+        except (KeyError, TypeError): self.roleList: RoleList = RoleList([])
+        try: self.replyMessage: Message = Message(data["replyMessage"]).Message
+        except (KeyError, TypeError): self.replyMessage: Message = Message([])
 
         self.content = None
         self.messageId = None
@@ -852,11 +888,11 @@ class MessageList:
             try: _replyMessage.append(obj_["replyMessage"])
             except (KeyError, TypeError): _replyMessage.append(None)
 
-        self.author = UserProfileList(_author).UserProfileList
+        self.author: UserProfileList = UserProfileList(_author).UserProfileList
         self.userList = _userList
-        self.role = RoleList(_role).RoleList
+        self.role: RoleList = RoleList(_role).RoleList
         self.roleList = _roleList
-        self.replyMessage = MessageList(_replyMessage).MessageList
+        self.replyMessage: MessageList = MessageList(_replyMessage).MessageList
         self.content = []
         self.messageId = []
         self.chatId = []
@@ -928,10 +964,10 @@ class Circle:
     def __init__(self, data):
         self.json = data
 
-        try: self.author = UserProfile(data["author"]).UserProfile
-        except (KeyError, TypeError): self.author = None
-        try: self.tagList = TagList(data["tagList"]).TagList
-        except (KeyError, TypeError): self.tagList = None
+        try: self.author: UserProfile = UserProfile(data["author"]).UserProfile
+        except (KeyError, TypeError): self.author: UserProfile = UserProfile([])
+        try: self.tagList: TagList = TagList(data["tagList"]).TagList
+        except (KeyError, TypeError): self.tagList: TagList = TagList([])
 
         self.name = None
         self.description = None
@@ -1001,10 +1037,10 @@ class CircleList:
         for obj_ in data:
             try: _author.append(obj_["author"])
             except (KeyError, TypeError): _author.append(None)
-            try: _tagList = TagList(obj_["tagList"]).TagList
+            try: _tagList.append(TagList(obj_["tagList"]).TagList)
             except (KeyError, TypeError): _tagList.append(None)
 
-        self.author = UserProfileList(_author).UserProfileList
+        self.author: UserProfileList = UserProfileList(_author).UserProfileList
         self.tagList = _tagList
         self.name = []
         self.description = []
@@ -1078,7 +1114,7 @@ class CommentList:
             try: _subComments.append(CommentList(obj_["subComments"]).CommentList)
             except (KeyError, TypeError): _subComments.append(None)
 
-        self.author = UserProfileList(_author).UserProfileList
+        self.author: UserProfileList = UserProfileList(_author).UserProfileList
         self.subComments = _subComments
         self.commentId = []
         self.createdTime = []
@@ -1148,8 +1184,8 @@ class GetAlerts:
     def __init__(self, data):
         self.json = data
 
-        try: self.alert = AlertsList(data["list"]).AlertsList
-        except (KeyError, TypeError): self.alert = None
+        try: self.alert: AlertsList = AlertsList(data["list"]).AlertsList
+        except (KeyError, TypeError): self.alert: AlertsList = AlertsList([])
 
         self.nextPageToken = None
         self.totalPages = None
@@ -1175,7 +1211,7 @@ class AlertsList:
             try: _operator.append(obj_["operator"])
             except (KeyError, TypeError): _operator.append(None)
 
-        self.operator = UserProfileList(_operator).UserProfileList
+        self.operator: UserProfileList = UserProfileList(_operator).UserProfileList
         self.alertId = []
         self.operatorId = []
         self.targetId = []
@@ -1508,5 +1544,111 @@ class InviteCodeCount:
         except (KeyError, TypeError): pass
         try: self.usedCount = self.json["usedCount"]
         except (KeyError, TypeError): pass
+
+        return self
+
+class GiftInfo:
+    def __init__(self, data):
+        self.json = data
+        self.openDaysInRow = None
+        self.followCount = None
+        self.nameCardEnabled = None
+        self.joinedThreadCount = None
+        self.isClaimed = None
+
+        try: self.achievement: Achievement = Achievement(data["achievement"])
+        except (KeyError, TypeError): self.achievement: Achievement = Achievement([])
+
+    @property
+    def GiftInfo(self):
+        try: self.openDaysInRow = self.json["openDaysInRow"]
+        except (KeyError, TypeError): pass
+        try: self.followCount = self.json["followCount"]
+        except (KeyError, TypeError): pass
+        try: self.nameCardEnabled = self.json["nameCardEnabled"]
+        except (KeyError, TypeError): pass
+        try: self.joinedThreadCount = self.json["joinedThreadCount"]
+        except (KeyError, TypeError): pass
+        try: self.isClaimed = self.json["isClaimed"]
+        except (KeyError, TypeError): pass
+
+        return self
+
+class Achievement:
+    def __init__(self, data):
+        self.json = data
+        self.name = None
+        self.achievementId = None
+        self.description = None
+        self.icon = None
+        self.iconUrl = None
+        self.thumbnail = None
+        self.thumbnailUrl = None
+        self.status = None
+        self.linkTask = None
+        self.createdTime = None
+
+    @property
+    def Achievement(self):
+        try: self.name = self.json["achievementName"]
+        except (KeyError, TypeError): pass
+        try: self.achievementId = self.json["achievementId"]
+        except (KeyError, TypeError): pass
+        try: self.description = self.json["description"]
+        except (KeyError, TypeError): pass
+        try: self.icon = self.json["icon"]
+        except (KeyError, TypeError): pass
+        try: self.iconUrl = self.json["icon"]["baseUrl"]
+        except (KeyError, TypeError): pass
+        try: self.thumbnail = self.json["thumbnail"]
+        except (KeyError, TypeError): pass
+        try: self.thumbnailUrl = self.json["thumbnail"]["baseUrl"]
+        except (KeyError, TypeError): pass
+        try: self.status = self.json["status"]
+        except (KeyError, TypeError): pass
+        try: self.linkTask = self.json["linkTask"]
+        except (KeyError, TypeError): pass
+        try: self.createdTime = self.json["createdTime"]
+        except (KeyError, TypeError): pass
+
+        return self
+
+class AchievementList:
+    def __init__(self, data):
+        self.json = data
+        self.name = []
+        self.achievementId = []
+        self.description = []
+        self.icon = []
+        self.iconUrl = []
+        self.thumbnail = []
+        self.thumbnailUrl = []
+        self.status = []
+        self.linkTask = []
+        self.createdTime = []
+
+    @property
+    def AchievementList(self):
+        for obj in self.json:
+            try: self.name.append(obj["achievementName"])
+            except (KeyError, TypeError): self.name.append(None)
+            try: self.achievementId.append(obj["achievementId"])
+            except (KeyError, TypeError): self.achievementId.append(None)
+            try: self.description.append(obj["description"])
+            except (KeyError, TypeError): self.description.append(None)
+            try: self.icon.append(obj["icon"])
+            except (KeyError, TypeError): self.icon.append(None)
+            try: self.iconUrl.append(obj["icon"]["baseUrl"])
+            except (KeyError, TypeError): self.iconUrl.append(None)
+            try: self.thumbnail.append(obj["thumbnail"])
+            except (KeyError, TypeError): self.thumbnail.append(None)
+            try: self.thumbnailUrl.append(obj["thumbnail"]["baseUrl"])
+            except (KeyError, TypeError): self.thumbnailUrl.append(None)
+            try: self.status.append(obj["status"])
+            except (KeyError, TypeError): self.status.append(None)
+            try: self.linkTask.append(obj["linkTask"])
+            except (KeyError, TypeError): self.linkTask.append(None)
+            try: self.createdTime.append(obj["createdTime"])
+            except (KeyError, TypeError): self.createdTime.append(None)
 
         return self
